@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-export default function AthleteManagement() {
+export default function AthleteManagement({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -95,16 +95,16 @@ export default function AthleteManagement() {
   const handleAthleteAction = (athlete, action) => {
     switch (action) {
       case 'message':
-        Alert.alert('Send Message', `Send message to ${athlete.name}`);
+        navigation.navigate('MessageAthlete', { athlete });
         break;
       case 'workout':
-        Alert.alert('Assign Workout', `Create workout for ${athlete.name}`);
+        navigation.navigate('AssignWorkout', { athlete });
         break;
       case 'progress':
-        Alert.alert('View Progress', `View ${athlete.name}'s progress and analytics`);
+        navigation.navigate('ViewProgress', { athlete });
         break;
       case 'schedule':
-        Alert.alert('Schedule Session', `Schedule session with ${athlete.name}`);
+        navigation.navigate('ScheduleSession', { athlete });
         break;
     }
   };

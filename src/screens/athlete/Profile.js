@@ -1,16 +1,144 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, FlatList, Modal, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { usePosts } from '../../context/PostsContext';
+import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
+import { useUser } from '../../context/UserContext';
+import { certificateService } from '../../services/supabaseConfig';
 
 export default function Profile() {
   const navigation = useNavigation();
-  const { posts } = usePosts();
+  const postsContext = usePosts();
+  const { posts = [] } = postsContext || {};
+  const { userProfile } = useUser();
   const [tab, setTab] = useState('personal'); // 'personal' | 'updates'
+  const [showCertificatesModal, setShowCertificatesModal] = useState(false);
+  const [certificates, setCertificates] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load certificates on component mount
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  const loadCertificates = async () => {
+    try {
+      setLoading(true);
+      // For now, use mock data. Replace with actual user ID when auth is implemented
+      const mockUserId = 'user-123';
+      
+      // Try to load from Supabase, fallback to mock data if not configured
+      try {
+        const userCertificates = await certificateService.getUserCertificates(mockUserId);
+        if (userCertificates.length > 0) {
+          setCertificates(userCertificates);
+        } else {
+          // Set default certificates if none exist
+          setDefaultCertificates();
+        }
+      } catch (error) {
+        console.log('Supabase not configured, using mock data');
+        setDefaultCertificates();
+      }
+    } catch (error) {
+      console.error('Error loading certificates:', error);
+      setDefaultCertificates();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setDefaultCertificates = () => {
+    setCertificates([
+      {
+        id: '1',
+        name: 'National Athletics Championship - Gold Medal',
+        issuer: 'National Athletics Federation',
+        date: '2024-08-15',
+        image: 'https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?w=400&h=300&fit=crop',
+        description: 'First place in 100m sprint at the National Athletics Championship'
+      },
+      {
+        id: '2',
+        name: 'State Level Sprint Championship - Silver Medal',
+        issuer: 'State Athletics Board',
+        date: '2024-06-20',
+        image: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=300&fit=crop',
+        description: 'Second place in 200m sprint at the State Level Championship'
+      }
+    ]);
+  };
 
   const handleLogout = () => {
     navigation.getParent()?.replace('RoleSelect');
+  };
+
+  const handleCertificatesPress = () => {
+    setShowCertificatesModal(true);
+  };
+
+  const handleViewCertificates = () => {
+    setShowCertificatesModal(false);
+    navigation.navigate('ViewCertificates', { certificates });
+  };
+
+  const handleAddCertificate = async () => {
+    setShowCertificatesModal(false);
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setLoading(true);
+        
+        const mockUserId = 'user-123';
+        let imageUrl = result.assets[0].uri;
+        
+        // Try to upload to Supabase, fallback to local URI
+        try {
+          imageUrl = await certificateService.uploadCertificateImage(
+            { uri: result.assets[0].uri },
+            mockUserId
+          );
+        } catch (error) {
+          console.log('Using local image URI, Supabase not configured');
+        }
+
+        const newCertificate = {
+          id: Date.now().toString(),
+          user_id: mockUserId,
+          name: 'New Certificate',
+          issuer: 'Certificate Authority',
+          date: new Date().toISOString().split('T')[0],
+          image: imageUrl,
+          image_url: imageUrl,
+          description: 'Recently added certificate'
+        };
+
+        // Try to save to Supabase, fallback to local state
+        try {
+          const savedCertificate = await certificateService.saveCertificate(newCertificate);
+          setCertificates(prev => [savedCertificate, ...prev]);
+        } catch (error) {
+          console.log('Saving locally, Supabase not configured');
+          setCertificates(prev => [newCertificate, ...prev]);
+        }
+        
+        Alert.alert('Certificate Added', 'Your certificate has been successfully added to your profile.');
+      }
+    } catch (error) {
+      console.error('Error adding certificate:', error);
+      Alert.alert('Error', 'Failed to add certificate. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
   const isImage = (url) => /(\.png|\.jpe?g|\.gif|\.webp)$/i.test(url || '');
   const isVideo = (url) => /(\.mp4|\.mov|\.webm|\.m4v|\.avi)$/i.test(url || '');
@@ -64,11 +192,14 @@ export default function Profile() {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <Image
-              source={require('../../../assets/icon.png')}
+              source={require('../../../assets/pfp.jpg')}
               style={styles.avatar}
               accessibilityLabel="Profile photo"
             />
-            <Text style={styles.name}>Alex Runner</Text>
+            <TouchableOpacity style={styles.qrButton} onPress={handleCertificatesPress}>
+              <Ionicons name="qr-code" size={24} color="#f97316" />
+            </TouchableOpacity>
+            <Text style={styles.name}>Pranay Nair</Text>
             <Text style={styles.category}>Track & Field</Text>
           </View>
 
@@ -167,6 +298,72 @@ export default function Profile() {
           />
         </View>
       )}
+      <BlindUserVoiceAssistant 
+        navigation={navigation} 
+        screenName="Profile" 
+        userProfile={userProfile}
+        screenData={{
+          posts: posts,
+          currentTab: tab
+        }}
+      />
+
+      {/* Certificates Modal */}
+      <Modal
+        visible={showCertificatesModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCertificatesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Certificates & Achievements</Text>
+              <TouchableOpacity onPress={() => setShowCertificatesModal(false)}>
+                <Ionicons name="close" size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalOptions}>
+              <TouchableOpacity style={styles.optionButton} onPress={handleViewCertificates}>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="eye" size={24} color="#2563eb" />
+                </View>
+                <View style={styles.optionText}>
+                  <Text style={styles.optionTitle}>View Certificates</Text>
+                  <Text style={styles.optionSubtitle}>See all your certificates and achievements</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.optionButton} onPress={handleAddCertificate}>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="add-circle" size={24} color="#10b981" />
+                </View>
+                <View style={styles.optionText}>
+                  <Text style={styles.optionTitle}>Add Certificate</Text>
+                  <Text style={styles.optionSubtitle}>Upload a new certificate or achievement</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.certificatesPreview}>
+              <Text style={styles.previewTitle}>Recent Certificates ({certificates.length})</Text>
+              {certificates.slice(0, 2).map((cert) => (
+                <View key={cert.id} style={styles.certificateItem}>
+                  <Image source={{ uri: cert.image }} style={styles.certificateImage} />
+                  <View style={styles.certificateInfo}>
+                    <Text style={styles.certificateName} numberOfLines={2}>{cert.name}</Text>
+                    <Text style={styles.certificateIssuer}>{cert.issuer}</Text>
+                    <Text style={styles.certificateDate}>{cert.date}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -174,8 +371,21 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 20 },
-  header: { alignItems: 'center', marginBottom: 16 },
+  header: { alignItems: 'center', marginBottom: 16, position: 'relative' },
   avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#f97316' },
+  qrButton: {
+    position: 'absolute',
+    top: 0,
+    right: 20,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
   name: { color: '#111827', fontSize: 22, fontWeight: '800', marginTop: 12 },
   category: { marginTop: 6, color: '#f97316', backgroundColor: '#fff7ed', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
@@ -216,5 +426,108 @@ const styles = StyleSheet.create({
   actionLabel: { color: '#6b7280', marginLeft: 6 },
   button: { backgroundColor: '#f97316', marginTop: 20, padding: 12, borderRadius: 12, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '600' },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  modalOptions: {
+    padding: 20,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  optionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  optionText: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  optionSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  certificatesPreview: {
+    paddingHorizontal: 20,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  certificateItem: {
+    flexDirection: 'row',
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  certificateImage: {
+    width: 60,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: '#e5e7eb',
+    marginRight: 12,
+  },
+  certificateInfo: {
+    flex: 1,
+  },
+  certificateName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  certificateIssuer: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  certificateDate: {
+    fontSize: 11,
+    color: '#9ca3af',
+  },
 });
 

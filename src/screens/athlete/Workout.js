@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { Ionicons } from '@expo/vector-icons';
 import { useWorkouts } from '../../context/WorkoutContext';
 import { generateWorkout } from '../../services/ai';
-import RealVoiceAssistant from '../../components/RealVoiceAssistant';
+import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
+import { useUser } from '../../context/UserContext';
 import ttsService from '../../services/tts';
 import speechRecognition from '../../services/speechRecognition';
 
 export default function Workout({ navigation }) {
   const { workouts, addWorkout, completeWorkout, deleteWorkout, getWorkoutStats } = useWorkouts();
+  const { userProfile } = useUser();
   const [showGenerator, setShowGenerator] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedTab, setSelectedTab] = useState('assigned'); // 'assigned' | 'generate'
@@ -338,9 +340,10 @@ export default function Workout({ navigation }) {
         </View>
       )}
       </ScrollView>
-      <RealVoiceAssistant 
+      <BlindUserVoiceAssistant 
         navigation={navigation} 
         screenName="Workout" 
+        userProfile={userProfile}
         screenData={{
           assignedWorkouts: assignedWorkouts,
           completedWorkouts: completedWorkouts,

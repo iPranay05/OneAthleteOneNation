@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ReactN",
-    "slug": "ReactN",
+    "name": "OneNationOneAthlete",
+    "slug": "one-nation-one-athlete",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,7 +15,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMotionUsageDescription": "This app uses motion data to calculate your steps."
+        "NSMotionUsageDescription": "This app uses motion data to calculate your steps.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice commands and accessibility features.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition for voice commands and accessibility features."
       }
     },
     "android": {
@@ -25,10 +27,17 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.ReactN",
-      "permissions": ["ACTIVITY_RECOGNITION"]
+      "permissions": [
+        "ACTIVITY_RECOGNITION",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-build-properties"
+    ]
   }
 }

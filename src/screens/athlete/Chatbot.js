@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { analyzeNutrition, chatWithAI, generateDietPlan, generateInjuryAdvice, assessSymptoms, generateCareerGuidance, generateFinancialHelp } from '../../services/ai';
-import RealVoiceAssistant from '../../components/RealVoiceAssistant';
+import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
+import { useUser } from '../../context/UserContext';
 import ttsService from '../../services/tts';
 import speechRecognition from '../../services/speechRecognition';
 
 export default function Chatbot({ navigation }) {
+  const { userProfile } = useUser();
   const [tab, setTab] = useState('chat'); // chat | diet | injury | symptoms | nutrition
   const [messages, setMessages] = useState([
     { id: '1', from: 'bot', text: "Hi! I'm your AI assistant. Ask me anything about training, nutrition, or recovery." },
@@ -760,9 +762,10 @@ export default function Chatbot({ navigation }) {
       {tab === 'nutrition' && NutritionViewEl}
       {tab === 'career' && CareerViewEl}
       {tab === 'financial' && FinancialViewEl}
-      <RealVoiceAssistant 
+      <BlindUserVoiceAssistant 
         navigation={navigation} 
         screenName="Chatbot" 
+        userProfile={userProfile}
         screenData={{
           currentTab: tab,
           messageCount: messages.length,

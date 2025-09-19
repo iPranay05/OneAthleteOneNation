@@ -3,10 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useProgress } from '../../context/ProgressContext';
 import { useWorkouts } from '../../context/WorkoutContext';
+import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
+import { useUser } from '../../context/UserContext';
 import { usePosts } from '../../context/PostsContext';
-import RealVoiceAssistant from '../../components/RealVoiceAssistant';
-import ttsService from '../../services/tts';
-import speechRecognition from '../../services/speechRecognition';
 
 // Mock Pedometer for development
 const Pedometer = {
@@ -20,6 +19,7 @@ const Pedometer = {
 };
 
 export default function Progress({ navigation }) {
+  const { userProfile } = useUser();
   const [isAvailable, setIsAvailable] = useState(null); // null | boolean
   const [loadingWeekly, setLoadingWeekly] = useState(false);
 
@@ -378,16 +378,14 @@ export default function Progress({ navigation }) {
         <Text style={styles.metricValue}>{workoutStats.completed}</Text>
       </View>
       </ScrollView>
-      <RealVoiceAssistant 
+      <BlindUserVoiceAssistant 
         navigation={navigation} 
         screenName="Progress" 
+        userProfile={userProfile}
         screenData={{
           todaySteps: todaySteps,
           weeklyStats: weeklyStats,
-          progressStats: {
-            completionRate: workoutStats.completionRate,
-            activeStreak: 7 // mock value
-          }
+          sessionActive: sessionActive
         }}
       />
     </View>
@@ -399,7 +397,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#f8fafc',
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 8,
   },
   
   // Header Styles

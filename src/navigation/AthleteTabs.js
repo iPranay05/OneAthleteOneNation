@@ -8,6 +8,12 @@ import Plans from '../screens/athlete/Plans';
 import Workout from '../screens/athlete/Workout';
 import Progress from '../screens/athlete/Progress';
 import Explore from '../screens/athlete/Explore';
+import EquipmentMarketplace from '../screens/athlete/EquipmentMarketplace';
+import KnowledgeHub from '../screens/athlete/KnowledgeHub';
+import FundingHub from '../screens/athlete/FundingHub';
+import CoachChat from '../screens/athlete/CoachChat';
+import MessageCoach from '../screens/athlete/MessageCoach';
+import ViewCertificates from '../screens/athlete/ViewCertificates';
 
 const Tab = createBottomTabNavigator();
 
@@ -42,6 +48,18 @@ export default function AthleteTabs() {
             case 'Progress':
               iconName = focused ? 'stats-chart' : 'stats-chart-outline';
               break;
+            case 'EquipmentMarketplace':
+              iconName = focused ? 'storefront' : 'storefront-outline';
+              break;
+            case 'KnowledgeHub':
+              iconName = focused ? 'library' : 'library-outline';
+              break;
+            case 'FundingHub':
+              iconName = focused ? 'card' : 'card-outline';
+              break;
+            case 'CoachChat':
+              iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+              break;
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -74,7 +92,55 @@ export default function AthleteTabs() {
       
       <Tab.Screen name="Workout" component={Workout} />
       
+      <Tab.Screen 
+        name="EquipmentMarketplace" 
+        component={EquipmentMarketplace}
+        options={{
+          title: 'Marketplace',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="storefront" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tab.Screen 
+        name="KnowledgeHub" 
+        component={KnowledgeHub}
+        options={{
+          title: 'Knowledge',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="library" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tab.Screen 
+        name="FundingHub" 
+        component={FundingHub}
+        options={{
+          title: 'Funding',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="card" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tab.Screen 
+        name="CoachChat" 
+        component={CoachChat}
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
+        }}
+      />
+      
       <Tab.Screen name="Profile" component={Profile} />
+
+      {/* Hidden screens for navigation */}
+      <Tab.Screen name="MessageCoach" component={MessageCoach} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="ViewCertificates" component={ViewCertificates} options={{ tabBarButton: () => null }} />
     </Tab.Navigator>
   );
 }

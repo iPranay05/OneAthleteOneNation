@@ -1,15 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { usePosts } from '../../context/PostsContext';
 import { useActivities } from '../../context/ActivitiesContext';
 
 export default function Explore() {
+  const navigation = useNavigation();
+  const postsContext = usePosts();
+  const { posts = [], addPost } = postsContext || {};
   const [text, setText] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [selectedCommunity, setSelectedCommunity] = useState('All');
   const [mode, setMode] = useState('posts'); // 'posts' | 'activities'
-  const { posts, addPost } = usePosts();
   const { activities } = useActivities();
 
   // Map sport/community name to an Ionicons icon with better sport-specific icons

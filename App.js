@@ -13,16 +13,18 @@ import { PlansProvider } from './src/context/PlansContext';
 import { ActivitiesProvider } from './src/context/ActivitiesContext';
 import { WorkoutProvider } from './src/context/WorkoutContext';
 import { ProgressProvider } from './src/context/ProgressContext';
+import { UserProvider } from './src/context/UserContext';
 
 export default function App() {
   const Stack = createNativeStackNavigator();
   return (
-    <PlansProvider>
-      <ActivitiesProvider>
-        <PostsProvider>
-          <WorkoutProvider>
-            <ProgressProvider>
-              <NavigationContainer>
+    <UserProvider>
+      <PlansProvider>
+        <ActivitiesProvider>
+          <PostsProvider>
+            <WorkoutProvider>
+              <ProgressProvider>
+                <NavigationContainer>
           <StatusBar style="dark" />
           <Stack.Navigator
         initialRouteName="RoleSelect"
@@ -59,12 +61,13 @@ export default function App() {
           options={{ headerShown: false }}
         />
           </Stack.Navigator>
-              </NavigationContainer>
-            </ProgressProvider>
-          </WorkoutProvider>
-        </PostsProvider>
-      </ActivitiesProvider>
-    </PlansProvider>
+                </NavigationContainer>
+              </ProgressProvider>
+            </WorkoutProvider>
+          </PostsProvider>
+        </ActivitiesProvider>
+      </PlansProvider>
+    </UserProvider>
   );
 }
 

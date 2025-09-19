@@ -1,17 +1,18 @@
-// Real Voice Recognition Service using expo-speech
-import * as Speech from 'expo-speech';
+// Voice Recognition Service using @react-native-voice/voice
+// This is a simplified wrapper around the enhanced speech recognition service
+import speechRecognition from './speechRecognition';
 
 class VoiceRecognitionService {
   constructor() {
     this.isListening = false;
     this.commands = new Map();
-    this.isAvailable = true;
+    this.isAvailable = false;
   }
 
   async initialize() {
     try {
-      // Check if speech recognition is available
-      return true;
+      this.isAvailable = await speechRecognition.initialize();
+      return this.isAvailable;
     } catch (error) {
       console.log('Voice recognition setup error:', error);
       return false;
@@ -19,6 +20,7 @@ class VoiceRecognitionService {
   }
 
   registerCommand(phrase, callback) {
+    speechRecognition.registerCommand(phrase, callback);
     this.commands.set(phrase.toLowerCase(), callback);
   }
 
@@ -29,111 +31,38 @@ class VoiceRecognitionService {
   }
 
   async startListening(onResult) {
-    if (this.isListening) return;
+    if (this.isListening) return false;
     
     this.isListening = true;
     console.log('🎤 Voice recognition started - listening for commands...');
     
-    // Since expo doesn't have built-in speech-to-text, we'll simulate it
-    // In a real app, you'd use react-native-voice or similar
-    this.simulateVoiceRecognition(onResult);
-  }
-
-  simulateVoiceRecognition(onResult) {
-    // Auto-trigger voice commands for testing
-    const commands = [
-      'read progress',
-      'read workouts', 
-      'workout stats',
-      'go to chatbot',
-      'go to progress', 
-      'go to workouts',
-      'where am i',
-      'voice search'
-    ];
-    
-    console.log('🎤 Voice recognition active - Available commands:', commands);
-    
-    // Show immediate voice options for user to test
-    this.showVoiceOptions(commands, onResult);
-  }
-
-  showVoiceOptions(commands, onResult) {
-    // Since we can't do real speech recognition, show command options
-    const Alert = require('react-native').Alert;
-    
-    const commandButtons = commands.slice(0, 6).map(cmd => ({
-      text: cmd,
-      onPress: () => this.processVoiceCommand(cmd, onResult)
-    }));
-
-    Alert.alert(
-      'Voice Commands',
-      'Tap to simulate voice command:',
-      [
-        ...commandButtons,
-        { text: 'Cancel', style: 'cancel', onPress: () => this.stopListening() }
-      ]
-    );
-  }
-
-  processVoiceCommand(spokenText, onResult) {
-    const text = spokenText.toLowerCase().trim();
-    console.log('🗣️ Processing voice command:', text);
-    
-    // Find matching command
-    let matchedCommand = null;
-    let bestMatch = 0;
-    
-    for (const [phrase, callback] of this.commands) {
-      const similarity = this.calculateSimilarity(text, phrase);
-      if (similarity > bestMatch && similarity > 0.6) {
-        bestMatch = similarity;
-        matchedCommand = { phrase, callback };
-      }
-    }
-    
-    if (matchedCommand) {
-      console.log('✅ Executing command:', matchedCommand.phrase);
-      matchedCommand.callback();
+    return speechRecognition.startListeningForVoiceInput((result) => {
+      this.isListening = false;
       if (onResult) {
-        onResult({ matched: true, phrase: matchedCommand.phrase, text });
-      }
-    } else {
-      console.log('❌ No matching command found for:', text);
-      if (onResult) {
-        onResult({ matched: false, text });
-      }
-    }
-    
-    this.stopListening();
-  }
-
-  calculateSimilarity(str1, str2) {
-    const words1 = str1.split(' ');
-    const words2 = str2.split(' ');
-    
-    let matches = 0;
-    words1.forEach(word1 => {
-      if (words2.some(word2 => word2.includes(word1) || word1.includes(word2))) {
-        matches++;
+        onResult(result);
       }
     });
-
-    return matches / Math.max(words1.length, words2.length);
   }
 
   stopListening() {
     this.isListening = false;
+    speechRecognition.stopListening();
     console.log('🛑 Voice recognition stopped');
   }
 
   clearCommands() {
+    speechRecognition.clearCommands();
     this.commands.clear();
   }
 
   getCommands() {
-    return Array.from(this.commands.keys());
+    return speechRecognition.getCommands();
+  }
+
+  calculateSimilarity(str1, str2) {
+    // Delegate to enhanced service
+    return speechRecognition.calculateSimilarity ? 
+      speechRecognition.calculateSimilarity(str1, str2) : 0;
   }
 }
 

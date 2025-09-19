@@ -1,23 +1,95 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { useUser } from '../context/UserContext';
 
 export default function AthleteLogin({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showDisabilitySelection, setShowDisabilitySelection] = useState(false);
+  const [selectedDisability, setSelectedDisability] = useState('');
+  const { setBlindUserProfile, updateUserProfile } = useUser();
 
   const mockAuth = (action) => {
     if (!email || !password) {
       Alert.alert('Missing fields', 'Please enter email and password.');
       return;
     }
+    
+    if (action === 'Login') {
+      setShowDisabilitySelection(true);
+      return;
+    }
+    
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
       Alert.alert('Success', `${action} as Athlete successful (mock).`);
-      navigation.replace('AthleteHome');
+      setShowDisabilitySelection(true);
     }, 800);
   };
+
+  const handleDisabilitySelection = (disabilityType) => {
+    setSelectedDisability(disabilityType);
+    
+    if (disabilityType === 'blind') {
+      setBlindUserProfile(email.split('@')[0], email);
+    }
+    
+    // Update user profile with disability information
+    const updatedProfile = {
+      id: Date.now(),
+      name: email.split('@')[0],
+      email,
+      disabilityType: disabilityType,
+      severity: 'moderate',
+      assistiveAids: [],
+      accessibilityPreferences: {
+        voiceAssistant: disabilityType === 'blind' || disabilityType === 'vision',
+        largeText: disabilityType === 'vision' || disabilityType === 'cognitive',
+        highContrast: disabilityType === 'vision',
+        screenReader: disabilityType === 'blind',
+        vibrationAlerts: disabilityType === 'deaf',
+        autoActivateVoice: disabilityType === 'blind',
+      }
+    };
+    updateUserProfile(updatedProfile);
+    
+    setTimeout(() => {
+      navigation.replace('AthleteHome');
+    }, 500);
+  };
+
+  const disabilityOptions = [
+    { key: 'blind', label: 'Blind/Visually Impaired', description: 'I have vision difficulties' },
+    { key: 'deaf', label: 'Deaf/Hard of Hearing', description: 'I have hearing difficulties' },
+    { key: 'mobility', label: 'Mobility Impairment', description: 'I have physical/mobility challenges' },
+    { key: 'cognitive', label: 'Cognitive Disability', description: 'I have learning or cognitive challenges' },
+    { key: 'speech', label: 'Speech Impairment', description: 'I have speech or communication challenges' },
+    { key: 'none', label: 'No Disability', description: 'I do not have a disability' },
+  ];
+
+  if (showDisabilitySelection) {
+    return (
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.title}>Accessibility Profile</Text>
+        <Text style={styles.subtitle}>
+          To provide the best experience, please let us know about any accessibility needs:
+        </Text>
+
+        {disabilityOptions.map((option) => (
+          <TouchableOpacity
+            key={option.key}
+            style={[styles.disabilityOption, selectedDisability === option.key && styles.selectedOption]}
+            onPress={() => handleDisabilitySelection(option.key)}
+          >
+            <Text style={styles.optionLabel}>{option.label}</Text>
+            <Text style={styles.optionDescription}>{option.description}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -68,12 +140,27 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
   },
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  contentContainer: {
+    padding: 24,
+    paddingTop: 60,
+  },
   title: {
     color: '#111827',
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  subtitle: {
+    color: '#6b7280',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
   },
   input: {
     backgroundColor: '#f9fafb',
@@ -112,6 +199,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     fontSize: 12,
+  },
+  disabilityOption: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  selectedOption: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 2,
+  },
+  optionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 18,
   },
 });
 

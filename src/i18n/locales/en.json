@@ -95,7 +95,7 @@
     "planDescription": "Plan Description (optional)",
     "cancel": "Cancel",
     "generate": "Generate",
-    "aiPromptPlaceholder": "Describe your training goals, sport, and preferences..."
+    "aiPromptPlaceholder": "Describe your training goal..."
   },
   "coach": {
     "shareCoachingTips": "Share coaching tips or updates",

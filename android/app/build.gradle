@@ -147,9 +147,34 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.core:core:1.16.0'
+        force 'androidx.versionedparcelable:versionedparcelable:1.1.1'
+        
+        eachDependency { details ->
+            if (details.requested.group == 'com.android.support') {
+                details.useTarget group: 'androidx.core', name: 'core', version: '1.16.0'
+            }
+            if (details.requested.group == 'com.android.support' && details.requested.name == 'support-compat') {
+                details.useTarget group: 'androidx.core', name: 'core', version: '1.16.0'
+            }
+            if (details.requested.group == 'com.android.support' && details.requested.name == 'versionedparcelable') {
+                details.useTarget group: 'androidx.versionedparcelable', name: 'versionedparcelable', version: '1.1.1'
+            }
+        }
+    }
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
-    implementation("com.facebook.react:react-android")
+    implementation("com.facebook.react:react-android") {
+        exclude group: 'com.android.support'
+    }
+
+    // Force AndroidX dependencies
+    implementation 'androidx.core:core:1.16.0'
+    implementation 'androidx.versionedparcelable:versionedparcelable:1.1.1'
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";

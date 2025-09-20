@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@react-native/metro-config": "^0.81.1",
     "babel-preset-expo": "^54.0.2"
   },
   "private": true,

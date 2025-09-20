@@ -63,12 +63,23 @@ export default function Plans() {
     
     setLoading(true);
     try {
-      const generatedPlan = await generatePlanWithAI(aiPrompt);
+      // Parse the AI prompt to extract parameters
+      const planParams = {
+        sport: 'General Fitness', // Default sport
+        goal: aiPrompt.trim(),
+        weeks: 4,
+        daysPerWeek: 5,
+        injuries: ''
+      };
+      
+      const generatedPlan = await generatePlanWithAI(planParams);
       addUserPlan(generatedPlan);
       setAiPrompt('');
       setShowAiModal(false);
     } catch (error) {
       console.error('AI generation failed:', error);
+      // Show error to user
+      alert('Failed to generate AI plan. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -117,9 +128,17 @@ export default function Plans() {
           {/* My plans */}
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>{t('plans.myPlans')}</Text>
-            <TouchableOpacity onPress={() => setShowAddModal(true)}>
-              <Text style={styles.linkOrange}>{t('plans.addPlan')}</Text>
-            </TouchableOpacity>
+            <View style={styles.row}>
+              <TouchableOpacity 
+                onPress={() => setShowAiModal(true)}
+                style={[styles.button, styles.aiBtn, { marginRight: 8 }]}
+              >
+                <Text style={styles.aiButtonText}>🤖 {t('plans.generateWithAI')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowAddModal(true)}>
+                <Text style={styles.linkOrange}>{t('plans.addPlan')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {myPlans.length === 0 ? (
@@ -197,9 +216,12 @@ export default function Plans() {
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>{t('plans.generateWithAI')}</Text>
               
+              <Text style={styles.helpText}>
+                Describe your training goal (e.g., "Build endurance for 5K running", "Strength training for basketball", "Weight loss with cardio")
+              </Text>
               <TextInput
                 style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-                placeholder={t('plans.aiPromptPlaceholder')}
+                placeholder="Example: Build strength and endurance for football season"
                 value={aiPrompt}
                 onChangeText={setAiPrompt}
                 multiline
@@ -276,6 +298,9 @@ const styles = StyleSheet.create({
   button: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
   primaryBtn: { backgroundColor: '#f97316' },
   ghostBtn: { backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fdba74' },
+  aiBtn: { backgroundColor: '#8b5cf6', paddingVertical: 6, paddingHorizontal: 12 },
   buttonText: { color: '#ffffff', fontWeight: '700' },
+  aiButtonText: { color: '#ffffff', fontWeight: '600', fontSize: 12 },
+  helpText: { color: '#6b7280', fontSize: 14, marginBottom: 8, lineHeight: 20 },
   errorText: { color: '#b91c1c', marginBottom: 6 },
 });

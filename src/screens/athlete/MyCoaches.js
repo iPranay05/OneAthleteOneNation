@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
-  FlatList,
   Linking,
-  ActivityIndicator
+  RefreshControl,
+  ActivityIndicator,
+  FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +33,8 @@ export default function MyCoaches({ navigation }) {
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [athleteCoaches, setAthleteCoaches] = useState(null);
   const [loadingCoaches, setLoadingCoaches] = useState(true);
+  const [athleteRequests, setAthleteRequests] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const { user, profile } = useAuth();
 
   // Use real user ID from auth context
@@ -51,6 +54,13 @@ export default function MyCoaches({ navigation }) {
       setLoadingCoaches(true);
       const coaches = getAthleteCoaches(currentAthleteId);
       setAthleteCoaches(coaches);
+      
+      // Load athlete's requests
+      const { coachAssignmentService } = await import('../../services/coachAssignmentService');
+      const requests = await coachAssignmentService.getAthleteRequests(currentAthleteId);
+      setAthleteRequests(requests);
+      
+      console.log('📋 Athlete requests:', requests.length);
       
       // If no coaches found and we have real coaches available, show info
       if (!coaches && Object.keys(coachProfiles).length > 0) {
@@ -78,13 +88,54 @@ export default function MyCoaches({ navigation }) {
     }
   };
 
-  const handleRequestCoach = (coach) => {
-    Alert.alert(
-      t('myCoaches.requestSent'),
-      t('myCoaches.requestSentMessage', { coachName: coach.name }),
-      [{ text: t('common.ok') }]
-    );
-    setShowRequestModal(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAthleteCoaches();
+    setRefreshing(false);
+  };
+
+  const getRequestStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return '#f59e0b';
+      case 'accepted': return '#10b981';
+      case 'rejected': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  const handleRequestCoach = async (coach) => {
+    try {
+      if (!user?.id) {
+        Alert.alert('Error', 'Please log in to send coach requests');
+        return;
+      }
+
+      // Import the service
+      const { coachAssignmentService } = await import('../../services/coachAssignmentService');
+      
+      // Send the request
+      await coachAssignmentService.sendCoachRequest(
+        user.id,
+        coach.id,
+        `Hi ${coach.name}, I would like to request you as my coach. Looking forward to working with you!`
+      );
+
+      setSelectedCoach(coach);
+      setShowRequestModal(false);
+      
+      // Refresh athlete requests to show the new request
+      await loadAthleteCoaches();
+      
+      Alert.alert(
+        t('myCoaches.requestSent'),
+        t('myCoaches.requestSentMessage', { coachName: coach.name })
+      );
+
+      console.log('✅ Coach request sent successfully to:', coach.name);
+    } catch (error) {
+      console.error('Error sending coach request:', error);
+      Alert.alert('Error', 'Failed to send coach request. Please try again.');
+    }
   };
 
   const renderPrimaryCoach = () => {
@@ -244,6 +295,8 @@ export default function MyCoaches({ navigation }) {
   };
 
   const renderAvailableCoaches = ({ item: coach }) => {
+    if (!coach) return null;
+    
     const availability = coachAvailability[coach.id];
     
     return (
@@ -254,22 +307,22 @@ export default function MyCoaches({ navigation }) {
         }}
       >
         <View style={styles.availableCoachHeader}>
-          <Text style={styles.availableCoachAvatar}>{coach.avatar}</Text>
+          <Text style={styles.availableCoachAvatar}>{coach.avatar || '👨‍🏫'}</Text>
           <View style={styles.availableCoachInfo}>
-            <Text style={styles.availableCoachName}>{coach.name}</Text>
-            <Text style={styles.availableCoachSpec}>{coach.specialization}</Text>
-            <Text style={styles.availableCoachExp}>{coach.experience}</Text>
+            <Text style={styles.availableCoachName}>{coach.name || 'Unknown Coach'}</Text>
+            <Text style={styles.availableCoachSpec}>{coach.specialization || 'General Coach'}</Text>
+            <Text style={styles.availableCoachExp}>{coach.experience || 'Experienced'}</Text>
           </View>
           
           <View style={styles.coachRating}>
             <Ionicons name="star" size={16} color="#f59e0b" />
-            <Text style={styles.ratingText}>{coach.rating}</Text>
+            <Text style={styles.ratingText}>{coach.rating || '5.0'}</Text>
           </View>
         </View>
         
         <View style={styles.coachLanguages}>
           <Text style={styles.languagesLabel}>{t('myCoaches.languages')}: </Text>
-          <Text style={styles.languagesText}>{coach.languages.join(', ')}</Text>
+          <Text style={styles.languagesText}>{coach.languages ? coach.languages.join(', ') : 'English'}</Text>
         </View>
         
         <TouchableOpacity 
@@ -297,7 +350,13 @@ export default function MyCoaches({ navigation }) {
             <Text style={styles.loadingText}>{t('common.loading')}</Text>
           </View>
         ) : (
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={styles.content} 
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
             {/* User Info */}
             {user && (
               <View style={styles.userInfo}>
@@ -347,25 +406,82 @@ export default function MyCoaches({ navigation }) {
             {renderSecondaryCoaches()}
           </View>
 
+          {/* My Requests Section */}
+          {athleteRequests.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>My Coach Requests</Text>
+                <TouchableOpacity 
+                  style={styles.refreshButton}
+                  onPress={onRefresh}
+                >
+                  <Ionicons name="refresh" size={20} color="#f97316" />
+                  <Text style={styles.refreshButtonText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.requestsContainer}>
+                {athleteRequests.map((request) => {
+                  const coach = coachProfiles[request.coach_id];
+                  return (
+                    <View key={request.id} style={styles.requestItem}>
+                      <View style={styles.requestHeader}>
+                        <View style={styles.requestCoachInfo}>
+                          <Text style={styles.requestCoachName}>
+                            {coach?.name || 'Unknown Coach'}
+                          </Text>
+                          <Text style={styles.requestDate}>
+                            Sent: {new Date(request.created_at).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <View style={[
+                          styles.requestStatusBadge,
+                          { backgroundColor: getRequestStatusColor(request.status) }
+                        ]}>
+                          <Text style={styles.requestStatusText}>
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {request.coach_response && (
+                        <View style={styles.coachResponseSection}>
+                          <Text style={styles.coachResponseLabel}>Coach Response:</Text>
+                          <Text style={styles.coachResponseText}>{request.coach_response}</Text>
+                        </View>
+                      )}
+                      
+                      {request.status === 'accepted' && (
+                        <TouchableOpacity 
+                          style={styles.messageCoachButton}
+                          onPress={() => navigation.navigate('DirectMessage', {
+                            recipientId: request.coach_id,
+                            recipientName: coach?.name || 'Coach',
+                            recipientRole: 'coach'
+                          })}
+                        >
+                          <Ionicons name="chatbubble" size={16} color="#ffffff" />
+                          <Text style={styles.messageCoachButtonText}>Message Coach</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {/* Coach Assignment History */}
           {athleteCoaches?.assignmentHistory && athleteCoaches.assignmentHistory.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('myCoaches.assignmentHistory')}</Text>
               <View style={styles.historyContainer}>
-                {athleteCoaches.assignmentHistory.slice(0, 3).map((history, index) => (
+                {athleteCoaches.assignmentHistory.map((history, index) => (
                   <View key={index} style={styles.historyItem}>
                     <View style={styles.historyIcon}>
-                      <Ionicons 
-                        name={history.action.includes('assigned') ? 'person-add' : 
-                              history.action.includes('removed') ? 'person-remove' : 'swap-horizontal'} 
-                        size={16} 
-                        color="#6b7280" 
-                      />
+                      <Ionicons name="time" size={16} color="#6b7280" />
                     </View>
                     <View style={styles.historyContent}>
-                      <Text style={styles.historyAction}>
-                        {history.action.replace('_', ' ').toUpperCase()}
-                      </Text>
+                      <Text style={styles.historyAction}>{history.action}</Text>
                       <Text style={styles.historyReason}>{history.reason}</Text>
                       <Text style={styles.historyDate}>
                         {new Date(history.timestamp).toLocaleDateString()}
@@ -397,7 +513,7 @@ export default function MyCoaches({ navigation }) {
               <Text style={styles.modalSubtitle}>{t('myCoaches.availableCoaches')}</Text>
               
               <FlatList
-                data={getAvailableCoaches()}
+                data={getAvailableCoaches() || []}
                 renderItem={renderAvailableCoaches}
                 keyExtractor={(item) => item.id}
                 style={styles.availableCoachesList}
@@ -511,6 +627,83 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  requestsContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  requestItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  requestHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  requestCoachInfo: {
+    flex: 1,
+  },
+  requestCoachName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  requestDate: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  requestStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  requestStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  coachResponseSection: {
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  coachResponseLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  coachResponseText: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+  },
+  messageCoachButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3b82f6',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  messageCoachButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -523,6 +716,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#fef3e2',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#f97316',
+  },
+  refreshButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#f97316',
+    marginLeft: 4,
   },
   primaryCoachCard: {
     backgroundColor: '#ffffff',

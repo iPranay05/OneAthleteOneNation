@@ -1,4 +1,5 @@
 import { supabase } from './supabaseConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const coachAssignmentService = {
   // Get all coaches who have registered and logged into the app
@@ -54,6 +55,133 @@ export const coachAssignmentService = {
     } catch (error) {
       console.error('Error in getAthleteCoachAssignments:', error);
       return null;
+    }
+  },
+
+  // Send coach request (athlete to coach)
+  async sendCoachRequest(athleteId, coachId, message = '') {
+    try {
+      console.log('🚀 Sending coach request:', { athleteId, coachId, message });
+      
+      const { data, error } = await supabase
+        .from('coach_requests')
+        .insert({
+          athlete_id: athleteId,
+          coach_id: coachId,
+          message: message,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase error sending request:', error);
+        throw error;
+      }
+
+      console.log('✅ Coach request sent successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Error sending coach request:', error);
+      throw error;
+    }
+  },
+
+  // Get all coach requests from Supabase
+  async getCoachRequests() {
+    try {
+      const { data, error } = await supabase
+        .from('coach_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting coach requests:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error getting coach requests:', error);
+      return [];
+    }
+  },
+
+  // Get requests for a specific coach
+  async getCoachRequestsForCoach(coachId) {
+    try {
+      console.log('🔍 Getting requests for coach:', coachId);
+      
+      const { data, error } = await supabase
+        .from('coach_requests')
+        .select('*')
+        .eq('coach_id', coachId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting coach requests for coach:', error);
+        return [];
+      }
+
+      console.log('📋 Found requests for coach:', data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error('Error getting coach requests for coach:', error);
+      return [];
+    }
+  },
+
+  // Get requests from a specific athlete
+  async getAthleteRequests(athleteId) {
+    try {
+      console.log('🔍 Getting requests for athlete:', athleteId);
+      
+      const { data, error } = await supabase
+        .from('coach_requests')
+        .select('*')
+        .eq('athlete_id', athleteId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting athlete requests:', error);
+        return [];
+      }
+
+      console.log('📋 Found requests for athlete:', data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error('Error getting athlete requests:', error);
+      return [];
+    }
+  },
+
+  // Update request status (accept/reject)
+  async updateRequestStatus(requestId, status, coachResponse = '') {
+    try {
+      console.log('🔄 Updating request status:', { requestId, status, coachResponse });
+      
+      const { data, error } = await supabase
+        .from('coach_requests')
+        .update({
+          status: status,
+          coach_response: coachResponse,
+          updated_at: new Date().toISOString(),
+          responded_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating request status:', error);
+        throw error;
+      }
+
+      console.log('✅ Request status updated successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Error updating request status:', error);
+      throw error;
     }
   },
 

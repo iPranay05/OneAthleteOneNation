@@ -10,10 +10,12 @@ import {
   Platform,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { messagingService } from '../../services/messagingService';
 
 export default function DirectMessage({ route, navigation }) {
   const { recipientId, recipientName, recipientAvatar, recipientRole } = route?.params || {};
@@ -21,61 +23,131 @@ export default function DirectMessage({ route, navigation }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const flatListRef = useRef(null);
+  const conversationKey = useRef(null);
 
-  // Mock conversation data
-  const mockMessages = [
-    {
-      id: '1',
-      senderId: recipientId,
-      senderName: recipientName,
-      senderAvatar: recipientAvatar,
-      content: 'Hi! I saw your post about training techniques. Great insights!',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      isRead: true,
-    },
-    {
-      id: '2',
-      senderId: currentUser?.id || 'current-user',
-      senderName: currentProfile?.full_name || currentUser?.email || 'You',
-      senderAvatar: currentProfile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-      content: 'Thank you! I\'m always happy to share knowledge with fellow athletes.',
-      timestamp: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-      isRead: true,
-    },
-    {
-      id: '3',
-      senderId: recipientId,
-      senderName: recipientName,
-      senderAvatar: recipientAvatar,
-      content: 'I\'m particularly interested in your approach to adaptive training. Could you share more about your methodology?',
-      timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      isRead: true,
-    },
-    {
-      id: '4',
-      senderId: currentUser?.id || 'current-user',
-      senderName: currentProfile?.full_name || currentUser?.email || 'You',
-      senderAvatar: currentProfile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-      content: 'Absolutely! I focus on personalized assessments first, then create adaptive programs based on individual capabilities and goals. Would you like to schedule a call to discuss this further?',
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      isRead: false,
-    },
-  ];
-
+  // Load conversation and set up real-time subscription
   useEffect(() => {
-    // Check if we have required params
-    if (!recipientId) {
+    if (!currentUser?.id || !recipientId) {
       setLoading(false);
       return;
     }
 
-    // Simulate loading messages
-    setTimeout(() => {
-      setMessages(mockMessages);
+    loadConversation();
+    setupRealtimeSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (conversationKey.current) {
+        messagingService.unsubscribeFromConversation(conversationKey.current);
+      }
+    };
+  }, [currentUser?.id, recipientId]);
+
+  const loadConversation = async () => {
+    try {
+      setLoading(true);
+      console.log('📱 Loading conversation between:', currentUser.id, 'and', recipientId);
+      
+      const conversationMessages = await messagingService.getConversationMessages(
+        currentUser.id,
+        recipientId
+      );
+
+      // Transform messages to match UI format
+      const formattedMessages = conversationMessages.map(msg => ({
+        id: msg.id,
+        senderId: msg.sender_id,
+        senderName: msg.sender_id === currentUser.id 
+          ? (currentProfile?.full_name || currentUser.email || 'You')
+          : recipientName,
+        senderAvatar: msg.sender_id === currentUser.id 
+          ? (currentProfile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face')
+          : recipientAvatar,
+        content: msg.message,
+        timestamp: msg.created_at,
+        isRead: msg.status === 'read',
+        status: msg.status,
+        messageType: msg.message_type
+      }));
+
+      setMessages(formattedMessages);
+      
+      // Mark messages as read
+      await messagingService.markMessagesAsRead(currentUser.id, recipientId);
+      
+      console.log('✅ Conversation loaded:', formattedMessages.length, 'messages');
+    } catch (error) {
+      console.error('❌ Error loading conversation:', error);
+      Alert.alert('Error', 'Failed to load conversation');
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, [recipientId]);
+    }
+  };
+
+  const setupRealtimeSubscription = () => {
+    if (!currentUser?.id || !recipientId) return;
+
+    console.log('🔔 Setting up real-time subscription');
+    
+    conversationKey.current = messagingService.subscribeToConversation(
+      currentUser.id,
+      recipientId,
+      (newMessage, eventType = 'insert') => {
+        console.log('📨 Real-time message received:', newMessage, eventType);
+        
+        if (eventType === 'insert') {
+          // Check if message already exists (avoid duplicates)
+          setMessages(prev => {
+            const messageExists = prev.some(msg => msg.id === newMessage.id);
+            if (messageExists) {
+              console.log('📨 Message already exists, skipping duplicate');
+              return prev;
+            }
+
+            // Add new message to the list
+            const formattedMessage = {
+              id: newMessage.id,
+              senderId: newMessage.sender_id,
+              senderName: newMessage.sender_id === currentUser.id 
+                ? (currentProfile?.full_name || currentUser.email || 'You')
+                : recipientName,
+              senderAvatar: newMessage.sender_id === currentUser.id 
+                ? (currentProfile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face')
+                : recipientAvatar,
+              content: newMessage.message,
+              timestamp: newMessage.created_at,
+              isRead: newMessage.status === 'read',
+              status: newMessage.status,
+              messageType: newMessage.message_type,
+              isOptimistic: false
+            };
+
+            console.log('📨 Adding new real-time message:', formattedMessage.id);
+            return [...prev, formattedMessage];
+          });
+          
+          // Auto-scroll to bottom
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+          
+          // Mark as read if it's from the other person
+          if (newMessage.sender_id !== currentUser.id) {
+            messagingService.markMessagesAsRead(currentUser.id, recipientId);
+          }
+        } else if (eventType === 'update') {
+          // Update message status (read receipts)
+          setMessages(prev => prev.map(msg => 
+            msg.id === newMessage.id 
+              ? { ...msg, isRead: newMessage.status === 'read', status: newMessage.status }
+              : msg
+          ));
+        }
+      }
+    );
+  };
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -86,46 +158,109 @@ export default function DirectMessage({ route, navigation }) {
     }
   }, [messages]);
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
+  const sendMessage = async () => {
+    if (!inputText.trim() || sending || !currentUser?.id || !recipientId) return;
 
-    const newMessage = {
-      id: Date.now().toString(),
-      senderId: currentUser?.id || 'current-user',
-      senderName: currentProfile?.full_name || currentUser?.email || 'You',
+    const messageText = inputText.trim();
+    setInputText('');
+    setSending(true);
+
+    // Create optimistic message (shows immediately)
+    const optimisticMessage = {
+      id: `temp-${Date.now()}`,
+      senderId: currentUser.id,
+      senderName: currentProfile?.full_name || currentUser.email || 'You',
       senderAvatar: currentProfile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-      content: inputText.trim(),
+      content: messageText,
       timestamp: new Date().toISOString(),
       isRead: false,
+      status: 'sending',
+      messageType: 'text',
+      isOptimistic: true
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInputText('');
+    // Add optimistic message immediately
+    setMessages(prev => [...prev, optimisticMessage]);
 
-    // Simulate recipient response after a delay
+    // Auto-scroll to bottom
     setTimeout(() => {
-      const responses = [
-        "That sounds great! Let me know when you're available.",
-        "Thanks for the information. Very helpful!",
-        "I appreciate your time and expertise.",
-        "Looking forward to working together!",
-        "That makes perfect sense. Thank you for explaining.",
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      const responseMessage = {
-        id: (Date.now() + 1).toString(),
-        senderId: recipientId,
-        senderName: recipientName,
-        senderAvatar: recipientAvatar,
-        content: randomResponse,
-        timestamp: new Date().toISOString(),
-        isRead: false,
-      };
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
 
-      setMessages(prev => [...prev, responseMessage]);
-    }, 2000 + Math.random() * 3000); // Random delay between 2-5 seconds
+    try {
+      console.log('📤 Sending message:', messageText);
+      
+      const sentMessage = await messagingService.sendMessage(
+        currentUser.id,
+        recipientId,
+        messageText,
+        'text'
+      );
+
+      console.log('✅ Message sent successfully:', sentMessage);
+
+      // Replace optimistic message with real message
+      setMessages(prev => {
+        // Check if real message already exists from real-time subscription
+        const realMessageExists = prev.some(msg => msg.id === sentMessage.id && !msg.isOptimistic);
+        
+        if (realMessageExists) {
+          // Real message already added by real-time, just remove optimistic
+          console.log('📨 Real message already exists, removing optimistic');
+          return prev.filter(msg => msg.id !== optimisticMessage.id);
+        } else {
+          // Replace optimistic with real message
+          console.log('📨 Replacing optimistic message with real message');
+          return prev.map(msg => 
+            msg.id === optimisticMessage.id 
+              ? {
+                  id: sentMessage.id,
+                  senderId: sentMessage.sender_id,
+                  senderName: currentProfile?.full_name || currentUser.email || 'You',
+                  senderAvatar: currentProfile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+                  content: sentMessage.message,
+                  timestamp: sentMessage.created_at,
+                  isRead: sentMessage.status === 'read',
+                  status: sentMessage.status,
+                  messageType: sentMessage.message_type,
+                  isOptimistic: false
+                }
+              : msg
+          );
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+      
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      
+      // Restore the message text if sending failed
+      setInputText(messageText);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const startVideoCall = () => {
+    if (!recipientId || !recipientName) {
+      Alert.alert('Error', 'Cannot start video call - recipient information missing');
+      return;
+    }
+
+    navigation.navigate('VideoCall', {
+      isIncoming: false,
+      recipientId: recipientId,
+      recipientName: recipientName,
+      recipientAvatar: recipientAvatar,
+      recipientRole: recipientRole
+    });
+  };
+
+  const startAudioCall = () => {
+    Alert.alert('Audio Call', 'Audio-only calling will be available in the next update!');
   };
 
   const formatTime = (timestamp) => {
@@ -223,28 +358,47 @@ export default function DirectMessage({ route, navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.profileInfo} onPress={handleProfilePress}>
-            <Image source={{ uri: recipientAvatar }} style={styles.headerAvatar} />
-            <View style={styles.headerTextContainer}>
-              <View style={styles.headerNameContainer}>
-                <Text style={styles.headerName}>{recipientName}</Text>
-                {recipientRole === 'coach' && (
-                  <View style={styles.headerCoachBadge}>
-                    <Ionicons name="school" size={10} color="#ffffff" />
-                  </View>
-                )}
-              </View>
-              <Text style={styles.headerStatus}>Active now</Text>
+          <TouchableOpacity 
+            style={styles.profileSection}
+            onPress={() => navigation.navigate('UserProfile', {
+              userId: recipientId,
+              userName: recipientName,
+              userRole: recipientRole
+            })}
+          >
+            <Image 
+              source={{ uri: recipientAvatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face' }}
+              style={styles.avatar}
+            />
+            <View style={styles.headerInfo}>
+              <Text style={styles.recipientName}>{recipientName}</Text>
+              <Text style={styles.recipientRole}>{recipientRole === 'coach' ? 'Coach' : 'Athlete'}</Text>
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.moreBtn}>
-            <Ionicons name="ellipsis-horizontal" size={24} color="#111827" />
-          </TouchableOpacity>
+          {/* Video Call Buttons */}
+          <View style={styles.callButtons}>
+            <TouchableOpacity 
+              style={styles.callButton}
+              onPress={startVideoCall}
+            >
+              <Ionicons name="videocam" size={20} color="#4f46e5" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.callButton}
+              onPress={startAudioCall}
+            >
+              <Ionicons name="call" size={20} color="#4f46e5" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Messages */}
@@ -271,15 +425,19 @@ export default function DirectMessage({ route, navigation }) {
               maxLength={500}
             />
             <TouchableOpacity 
-              style={[styles.sendButton, inputText.trim() && styles.sendButtonActive]}
+              style={[styles.sendButton, (inputText.trim() && !sending) && styles.sendButtonActive]}
               onPress={sendMessage}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || sending}
             >
-              <Ionicons 
-                name="send" 
-                size={20} 
-                color={inputText.trim() ? "#ffffff" : "#9ca3af"} 
-              />
+              {sending ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Ionicons 
+                  name="send" 
+                  size={20} 
+                  color={(inputText.trim() && !sending) ? "#ffffff" : "#9ca3af"} 
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -348,6 +506,20 @@ const styles = StyleSheet.create({
   },
   moreBtn: {
     padding: 8,
+  },
+  callButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  callButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   messagesList: {
     flex: 1,

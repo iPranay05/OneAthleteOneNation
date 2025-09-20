@@ -16,6 +16,7 @@ import ScheduleSession from '../screens/coach/ScheduleSession';
 import InjuryPrevention from '../screens/coach/InjuryPrevention';
 import InjuryReport from '../screens/coach/InjuryReport';
 import CoachAssignments from '../screens/coach/CoachAssignments';
+import CoachRequests from '../screens/coach/CoachRequests';
 import UserProfile from '../screens/shared/UserProfile';
 import DirectMessage from '../screens/shared/DirectMessage';
 
@@ -138,6 +139,7 @@ export default function CoachTabs() {
       <Tab.Screen name="InjuryPrevention" component={InjuryPrevention} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="InjuryReport" component={InjuryReport} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="CoachAssignments" component={CoachAssignments} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="CoachRequests" component={CoachRequests} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="UserProfile" component={UserProfile} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="DirectMessage" component={DirectMessage} options={{ tabBarButton: () => null }} />
     </Tab.Navigator>

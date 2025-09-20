@@ -127,6 +127,11 @@ export default function CoachDashboard({ navigation }) {
             <Ionicons name="people-circle" size={32} color="#f97316" />
             <Text style={styles.actionText}>Coach Management</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('CoachRequests')}>
+            <Ionicons name="mail" size={32} color="#f97316" />
+            <Text style={styles.actionText}>Athlete Requests</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

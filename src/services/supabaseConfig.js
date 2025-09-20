@@ -1,10 +1,174 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Replace these with your actual Supabase project URL and anon key
 const supabaseUrl = 'https://hzlbioejvlenxjhvrniy.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6bGJpb2VqdmxlbnhqaHZybml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODEyMTUsImV4cCI6MjA3Mzg1NzIxNX0.Ho4LMGrVecxzvT5-WYSZoEWQngrKUn-viq34qqa9g98';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
+
+// Authentication service
+export const authService = {
+  // Sign up with email and password
+  async signUp(email, password, userData = {}) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: userData.fullName,
+          role: userData.role || 'athlete',
+          ...userData
+        }
+      }
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Sign in with email and password
+  async signIn(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Sign out
+  async signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  // Get current session
+  async getSession() {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return session;
+  },
+
+  // Get current user
+  async getCurrentUser() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return user;
+  },
+
+  // Reset password
+  async resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'yourapp://reset-password',
+    });
+    if (error) throw error;
+  },
+
+  // Update password
+  async updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (error) throw error;
+  },
+
+  // Listen to auth state changes
+  onAuthStateChange(callback) {
+    return supabase.auth.onAuthStateChange(callback);
+  }
+};
+
+// Profile service
+export const profileService = {
+  async getProfile(userId) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async updateProfile(userId, updates) {
+    // First try to update
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      // If profile doesn't exist, create it
+      if (error.code === 'PGRST116') {
+        console.log('Profile not found, creating new profile...');
+        const { data: userData } = await supabase.auth.getUser();
+        const newProfile = {
+          id: userId,
+          email: userData.user?.email,
+          full_name: userData.user?.user_metadata?.full_name,
+          ...updates
+        };
+        
+        const { data: createdData, error: createError } = await supabase
+          .from('profiles')
+          .insert([newProfile])
+          .select()
+          .single();
+          
+        if (createError) throw createError;
+        return createdData;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  async completeProfile(userId, profileData) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...profileData,
+        profile_completed: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async uploadAvatar(userId, file) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  }
+};
 
 // Certificate service functions
 export const certificateService = {

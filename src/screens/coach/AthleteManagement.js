@@ -11,7 +11,7 @@ export default function AthleteManagement({ navigation }) {
   const [athletes, setAthletes] = useState([
     {
       id: 1,
-      name: 'Sarah Johnson',
+      name: 'YASH',
       sport: 'Track & Field',
       disability: 'Visual Impairment',
       status: 'active',
@@ -23,7 +23,7 @@ export default function AthleteManagement({ navigation }) {
     },
     {
       id: 2,
-      name: 'Mike Chen',
+      name: 'PRANAY',
       sport: 'Swimming',
       disability: 'Mobility',
       status: 'active',
@@ -35,7 +35,7 @@ export default function AthleteManagement({ navigation }) {
     },
     {
       id: 3,
-      name: 'Emma Davis',
+      name: 'ABHIN',
       sport: 'Basketball',
       disability: 'Hearing Impairment',
       status: 'inactive',
@@ -47,7 +47,7 @@ export default function AthleteManagement({ navigation }) {
     },
     {
       id: 4,
-      name: 'Alex Rodriguez',
+      name: 'RITIKA',
       sport: 'Powerlifting',
       disability: 'Cognitive',
       status: 'active',

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Image, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { analyzeNutrition, chatWithAI, generateDietPlan, generateInjuryAdvice, assessSymptoms, generateCareerGuidance, generateFinancialHelp } from '../../services/ai';
 import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
 import { useUser } from '../../context/UserContext';
 import ttsService from '../../services/tts';
 import speechRecognition from '../../services/speechRecognition';
+
 
 export default function Chatbot({ navigation }) {
   const { userProfile } = useUser();
@@ -753,7 +755,8 @@ export default function Chatbot({ navigation }) {
   );
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {TabBarEl}
       {tab === 'chat' && ChatViewEl}
       {tab === 'diet' && DietViewEl}
@@ -772,11 +775,16 @@ export default function Chatbot({ navigation }) {
           onVoiceInput: (text) => setInput(text)
         }}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: { flex: 1, backgroundColor: '#ffffff' },
   bubble: {
     maxWidth: '80%',

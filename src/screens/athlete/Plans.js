@@ -10,245 +10,250 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { usePlans } from '../../context/PlansContext';
 import { generatePlanWithAI } from '../../services/ai';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import LanguageToggle from '../../components/LanguageToggle'; 
 
 export default function Plans() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { coachSchedules, myPlans, addUserPlan } = usePlans();
 
-  // Add plan modal state
+  // State for modals and forms
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newDetail, setNewDetail] = useState('');
-
-  // AI modal state
   const [showAiModal, setShowAiModal] = useState(false);
-  const [aiSport, setAiSport] = useState('Track & Field');
-  const [aiGoal, setAiGoal] = useState('Improve 200m sprint time');
-  const [aiWeeks, setAiWeeks] = useState('4');
-  const [aiDays, setAiDays] = useState('5');
-  const [aiInjuries, setAiInjuries] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [detail, setDetail] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity onPress={() => setShowAiModal(true)}>
-          <Text style={{ color: '#f97316', fontWeight: '700' }}>Generate with AI</Text>
+          <Text style={{ color: '#f97316', fontWeight: '700' }}>{t('plans.generateWithAI')}</Text>
         </TouchableOpacity>
       ),
-      title: 'Personalized Plans',
+      title: t('plans.title'),
     });
-  }, [navigation]);
+  }, [navigation, t]);
 
-  const onAddPlan = () => {
-    if (!newTitle.trim()) return;
-    addUserPlan({ title: newTitle.trim(), detail: newDetail.trim() });
-    setNewTitle('');
-    setNewDetail('');
+  // Functions for handling modals and form submission
+  const handleAddPlan = () => {
+    if (!title.trim()) return;
+    
+    const newPlan = {
+      id: Date.now().toString(),
+      title: title.trim(),
+      detail: detail.trim(),
+      status: t('plans.planned'),
+      schedule: []
+    };
+    
+    addUserPlan(newPlan);
+    setTitle('');
+    setDetail('');
     setShowAddModal(false);
   };
 
-  const onGenerateAI = async () => {
-    setAiLoading(true);
-    setAiError('');
+  const handleGenerateAI = async () => {
+    if (!aiPrompt.trim()) return;
+    
+    setLoading(true);
     try {
-      const weeks = Math.max(1, parseInt(aiWeeks || '4', 10) || 4);
-      const daysPerWeek = Math.min(7, Math.max(1, parseInt(aiDays || '5', 10) || 5));
-      const plan = await generatePlanWithAI({
-        sport: aiSport || 'General',
-        goal: aiGoal || 'Get fitter',
-        weeks,
-        daysPerWeek,
-        injuries: aiInjuries || '',
-      });
-      addUserPlan(plan);
+      const generatedPlan = await generatePlanWithAI(aiPrompt);
+      addUserPlan(generatedPlan);
+      setAiPrompt('');
       setShowAiModal(false);
-    } catch (e) {
-      setAiError(e?.message || 'Failed to generate plan.');
+    } catch (error) {
+      console.error('AI generation failed:', error);
     } finally {
-      setAiLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Coach schedules */}
-        <Text style={styles.sectionTitle}>Coach Schedules</Text>
-        {coachSchedules.length === 0 ? (
-          <View style={styles.cardMuted}>
-            <Text style={styles.mutedText}>No schedules assigned yet.</Text>
-          </View>
-        ) : (
-          coachSchedules.map((c) => (
-            <View key={c.id} style={styles.card}>
-              <Text style={styles.planTitle}>{c.title}</Text>
-              {!!c.detail && <Text style={styles.planDetail}>{c.detail}</Text>}
-              <Text style={styles.planStatus}>{c.status || 'Assigned'}</Text>
-
-              {Array.isArray(c.schedule) && c.schedule.length > 0 && (
-                <View style={{ marginTop: 10 }}>
-                  {c.schedule.map((d, i) => (
-                    <View key={i} style={styles.dayRow}>
-                      <Text style={styles.dayLabel}>{d.day || `Day ${i + 1}`}</Text>
-                      <View style={styles.dayItemsCol}>
-                        {(d.items || []).map((it, j) => (
-                          <Text key={j} style={styles.dayItem}>• {it}</Text>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          ))
-        )}
-
-        {/* My plans */}
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>My Plans</Text>
-          <TouchableOpacity onPress={() => setShowAddModal(true)}>
-            <Text style={styles.linkOrange}>Add Plan</Text>
-          </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>  {/* ✅ SafeAreaView wrapper */}
+      <View style={styles.container}>
+        {/* Header with Language Toggle */}
+        <View style={styles.titleHeader}>
+          <Text style={styles.screenTitle}>{t('plans.title')}</Text>
+          <LanguageToggle showLabel={false} />
         </View>
 
-        {myPlans.length === 0 ? (
-          <View style={styles.cardMuted}>
-            <Text style={styles.mutedText}>You have no saved plans. Add one or generate with AI.</Text>
-          </View>
-        ) : (
-          myPlans.map((p) => (
-            <View key={p.id} style={styles.card}>
-              <Text style={styles.planTitle}>{p.title}</Text>
-              {!!p.detail && <Text style={styles.planDetail}>{p.detail}</Text>}
-              <Text style={styles.planStatus}>{p.status || 'Planned'}</Text>
-
-              {Array.isArray(p.schedule) && p.schedule.length > 0 && (
-                <View style={{ marginTop: 10 }}>
-                  {p.schedule.map((d, i) => (
-                    <View key={i} style={styles.dayRow}>
-                      <Text style={styles.dayLabel}>{d.day || `Day ${i + 1}`}</Text>
-                      <View style={styles.dayItemsCol}>
-                        {(d.items || []).map((it, j) => (
-                          <Text key={j} style={styles.dayItem}>• {it}</Text>
-                        ))}
+        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+          {/* Coach schedules */}
+          <Text style={styles.sectionTitle}>{t('plans.coachSchedules')}</Text>
+          {coachSchedules.length === 0 ? (
+            <View style={styles.cardMuted}>
+              <Text style={styles.mutedText}>{t('plans.noSchedulesAssigned')}</Text>
+            </View>
+          ) : (
+            coachSchedules.map((c) => (
+              <View key={c.id} style={styles.card}>
+                <Text style={styles.planTitle}>{c.title}</Text>
+                {!!c.detail && <Text style={styles.planDetail}>{c.detail}</Text>}
+                <Text style={styles.planStatus}>{c.status || t('plans.assigned')}</Text>
+                {Array.isArray(c.schedule) && c.schedule.length > 0 && (
+                  <View style={{ marginTop: 10 }}>
+                    {c.schedule.map((d, i) => (
+                      <View key={i} style={styles.dayRow}>
+                        <Text style={styles.dayLabel}>{d.day || `${t('plans.day')} ${i + 1}`}</Text>
+                        <View style={styles.dayItemsCol}>
+                          {(d.items || []).map((it, j) => (
+                            <Text key={j} style={styles.dayItem}>• {it}</Text>
+                          ))}
+                        </View>
                       </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          ))
-        )}
-      </ScrollView>
-
-      {/* Add Plan Modal */}
-      <Modal visible={showAddModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add Plan</Text>
-            <TextInput
-              placeholder="Title"
-              placeholderTextColor="#9ca3af"
-              value={newTitle}
-              onChangeText={setNewTitle}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Detail (optional)"
-              placeholderTextColor="#9ca3af"
-              value={newDetail}
-              onChangeText={setNewDetail}
-              style={[styles.input, { height: 90 }]} multiline
-            />
-            <View style={styles.rowRight}>
-              <TouchableOpacity style={[styles.button, styles.ghostBtn]} onPress={() => setShowAddModal(false)}>
-                <Text style={[styles.buttonText, { color: '#f97316' }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, styles.primaryBtn, { marginLeft: 10 }]} onPress={onAddPlan}>
-                <Text style={styles.buttonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* AI Modal */}
-      <Modal visible={showAiModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Generate with AI</Text>
-            <TextInput
-              placeholder="Sport (e.g., Track & Field)"
-              placeholderTextColor="#9ca3af"
-              value={aiSport}
-              onChangeText={setAiSport}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Goal (e.g., Improve 200m time)"
-              placeholderTextColor="#9ca3af"
-              value={aiGoal}
-              onChangeText={setAiGoal}
-              style={styles.input}
-            />
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  placeholder="Weeks"
-                  placeholderTextColor="#9ca3af"
-                  value={aiWeeks}
-                  onChangeText={setAiWeeks}
-                  keyboardType="number-pad"
-                  style={styles.input}
-                />
-              </View>
-              <View style={{ width: 10 }} />
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  placeholder="Days/week"
-                  placeholderTextColor="#9ca3af"
-                  value={aiDays}
-                  onChangeText={setAiDays}
-                  keyboardType="number-pad"
-                  style={styles.input}
-                />
-              </View>
-            </View>
-            <TextInput
-              placeholder="Injuries/constraints (optional)"
-              placeholderTextColor="#9ca3af"
-              value={aiInjuries}
-              onChangeText={setAiInjuries}
-              style={[styles.input, { height: 80 }]} multiline
-            />
-
-            {!!aiError && <Text style={styles.errorText}>{aiError}</Text>}
-
-            <View style={styles.rowRight}>
-              <TouchableOpacity style={[styles.button, styles.ghostBtn]} onPress={() => setShowAiModal(false)} disabled={aiLoading}>
-                <Text style={[styles.buttonText, { color: '#f97316' }]}>Close</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, styles.primaryBtn, { marginLeft: 10, minWidth: 120, alignItems: 'center' }]} onPress={onGenerateAI} disabled={aiLoading}>
-                {aiLoading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text style={styles.buttonText}>Generate</Text>
+                    ))}
+                  </View>
                 )}
-              </TouchableOpacity>
+              </View>
+            ))
+          )}
+
+          {/* My plans */}
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>{t('plans.myPlans')}</Text>
+            <TouchableOpacity onPress={() => setShowAddModal(true)}>
+              <Text style={styles.linkOrange}>{t('plans.addPlan')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {myPlans.length === 0 ? (
+            <View style={styles.cardMuted}>
+              <Text style={styles.mutedText}>{t('plans.noSavedPlans')}</Text>
+            </View>
+          ) : (
+            myPlans.map((p) => (
+              <View key={p.id} style={styles.card}>
+                <Text style={styles.planTitle}>{p.title}</Text>
+                {!!p.detail && <Text style={styles.planDetail}>{p.detail}</Text>}
+                <Text style={styles.planStatus}>{p.status || t('plans.planned')}</Text>
+                {Array.isArray(p.schedule) && p.schedule.length > 0 && (
+                  <View style={{ marginTop: 10 }}>
+                    {p.schedule.map((d, i) => (
+                      <View key={i} style={styles.dayRow}>
+                        <Text style={styles.dayLabel}>{d.day || `${t('plans.day')} ${i + 1}`}</Text>
+                        <View style={styles.dayItemsCol}>
+                          {(d.items || []).map((it, j) => (
+                            <Text key={j} style={styles.dayItem}>• {it}</Text>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </ScrollView>
+
+        {/* Add Plan Modal */}
+        <Modal visible={showAddModal} transparent animationType="slide">
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>{t('plans.addNewPlan')}</Text>
+              
+              <TextInput
+                style={styles.input}
+                placeholder={t('plans.planTitle')}
+                value={title}
+                onChangeText={setTitle}
+              />
+              
+              <TextInput
+                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                placeholder={t('plans.planDescription')}
+                value={detail}
+                onChangeText={setDetail}
+                multiline
+              />
+              
+              <View style={styles.rowRight}>
+                <TouchableOpacity 
+                  style={[styles.button, styles.ghostBtn, { marginRight: 10 }]}
+                  onPress={() => setShowAddModal(false)}
+                >
+                  <Text style={[styles.buttonText, { color: '#f97316' }]}>{t('plans.cancel')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.button, styles.primaryBtn]}
+                  onPress={handleAddPlan}
+                >
+                  <Text style={styles.buttonText}>{t('plans.addPlan')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+
+        {/* AI Generation Modal */}
+        <Modal visible={showAiModal} transparent animationType="slide">
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>{t('plans.generateWithAI')}</Text>
+              
+              <TextInput
+                style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                placeholder={t('plans.aiPromptPlaceholder')}
+                value={aiPrompt}
+                onChangeText={setAiPrompt}
+                multiline
+              />
+              
+              <View style={styles.rowRight}>
+                <TouchableOpacity 
+                  style={[styles.button, styles.ghostBtn, { marginRight: 10 }]}
+                  onPress={() => setShowAiModal(false)}
+                >
+                  <Text style={[styles.buttonText, { color: '#f97316' }]}>{t('plans.cancel')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.button, styles.primaryBtn]}
+                  onPress={handleGenerateAI}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.buttonText}>{t('plans.generate')}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff', // match container
+  },
   container: { flex: 1, backgroundColor: '#ffffff', padding: 16 },
+  titleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    marginBottom: 16,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+  },
   sectionTitle: { color: '#111827', fontSize: 18, fontWeight: '700', marginBottom: 8, marginTop: 4 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 10 },
@@ -264,7 +269,6 @@ const styles = StyleSheet.create({
   dayItemsCol: { flex: 1 },
   dayItem: { color: '#111827' },
   linkOrange: { color: '#f97316', fontWeight: '700' },
-
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)', padding: 16, justifyContent: 'center' },
   modalCard: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', padding: 16 },
   modalTitle: { color: '#111827', fontSize: 18, fontWeight: '800', marginBottom: 10 },
@@ -275,4 +279,3 @@ const styles = StyleSheet.create({
   buttonText: { color: '#ffffff', fontWeight: '700' },
   errorText: { color: '#b91c1c', marginBottom: 6 },
 });
-

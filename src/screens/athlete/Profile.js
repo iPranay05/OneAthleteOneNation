@@ -6,32 +6,47 @@ import * as ImagePicker from 'expo-image-picker';
 import { usePosts } from '../../context/PostsContext';
 import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
 import { useUser } from '../../context/UserContext';
-import { certificateService } from '../../services/supabaseConfig';
+import { useAuth } from '../../context/AuthContext';
+import { certificateService, profileService } from '../../services/supabaseConfig';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function Profile() {
   const navigation = useNavigation();
   const postsContext = usePosts();
   const { posts = [] } = postsContext || {};
   const { userProfile } = useUser();
+  const { user, profile, signOut } = useAuth();
   const [tab, setTab] = useState('personal'); // 'personal' | 'updates'
   const [showCertificatesModal, setShowCertificatesModal] = useState(false);
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load certificates on component mount
+  // Load certificates on component mount and when user changes
   useEffect(() => {
     loadCertificates();
-  }, []);
+  }, [user?.id]);
+
+  // Reload certificates when profile changes
+  useEffect(() => {
+    if (user?.id) {
+      loadCertificates();
+    }
+  }, [profile]);
 
   const loadCertificates = async () => {
     try {
       setLoading(true);
-      // For now, use mock data. Replace with actual user ID when auth is implemented
-      const mockUserId = 'user-123';
       
-      // Try to load from Supabase, fallback to mock data if not configured
+      if (!user?.id) {
+        console.log('No authenticated user, using mock data');
+        setDefaultCertificates();
+        return;
+      }
+      
+      // Load certificates for authenticated user
       try {
-        const userCertificates = await certificateService.getUserCertificates(mockUserId);
+        const userCertificates = await certificateService.getUserCertificates(user.id);
         if (userCertificates.length > 0) {
           setCertificates(userCertificates);
         } else {
@@ -39,7 +54,7 @@ export default function Profile() {
           setDefaultCertificates();
         }
       } catch (error) {
-        console.log('Supabase not configured, using mock data');
+        console.error('Error loading certificates from Supabase:', error);
         setDefaultCertificates();
       }
     } catch (error) {
@@ -72,7 +87,29 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
-    navigation.getParent()?.replace('RoleSelect');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              // Navigation will be handled by the auth state change
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCertificatesPress = () => {
@@ -187,20 +224,32 @@ export default function Profile() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       {tab === 'personal' ? (
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <Image
-              source={require('../../../assets/pfp.jpg')}
+              source={
+                profile?.avatar_url 
+                  ? { uri: profile.avatar_url }
+                  : require('../../../assets/pfp.jpg')
+              }
               style={styles.avatar}
               accessibilityLabel="Profile photo"
             />
             <TouchableOpacity style={styles.qrButton} onPress={handleCertificatesPress}>
               <Ionicons name="qr-code" size={24} color="#f97316" />
             </TouchableOpacity>
-            <Text style={styles.name}>Pranay Nair</Text>
-            <Text style={styles.category}>Track & Field</Text>
+            <Text style={styles.name}>
+              {profile?.full_name || user?.email || 'User'}
+            </Text>
+            <Text style={styles.category}>
+              {profile?.primary_sport ? 
+                profile.primary_sport.charAt(0).toUpperCase() + profile.primary_sport.slice(1).replace('_', ' ') 
+                : 'Athlete'
+              }
+            </Text>
           </View>
 
           <View style={styles.tabSwitch}>
@@ -215,56 +264,113 @@ export default function Profile() {
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>21</Text>
+              <Text style={styles.statValue}>
+                {profile?.date_of_birth ? 
+                  Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+                  : '-'
+                }
+              </Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Height</Text>
-              <Text style={styles.statValue}>178 cm</Text>
+              <Text style={styles.statValue}>
+                {profile?.height_cm ? `${profile.height_cm} cm` : '-'}
+              </Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Weight</Text>
-              <Text style={styles.statValue}>68 kg</Text>
+              <Text style={styles.statValue}>
+                {profile?.weight_kg ? `${profile.weight_kg} kg` : '-'}
+              </Text>
             </View>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Sports</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Expert in</Text>
-              <Text style={styles.infoValue}>Track Sprinting (200m, 400m)</Text>
+              <Text style={styles.infoLabel}>Primary Sport</Text>
+              <Text style={styles.infoValue}>
+                {profile?.primary_sport ? 
+                  profile.primary_sport.charAt(0).toUpperCase() + profile.primary_sport.slice(1).replace('_', ' ')
+                  : 'Not specified'
+                }
+              </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Alternate</Text>
-              <Text style={styles.infoValue}>Long Jump</Text>
+              <Text style={styles.infoLabel}>Experience Level</Text>
+              <Text style={styles.infoValue}>
+                {profile?.experience_level ? 
+                  profile.experience_level.charAt(0).toUpperCase() + profile.experience_level.slice(1)
+                  : 'Not specified'
+                }
+              </Text>
             </View>
+            {profile?.secondary_sports && profile.secondary_sports.length > 0 && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Secondary Sports</Text>
+                <Text style={styles.infoValue}>
+                  {profile.secondary_sports.map(sport => 
+                    sport.charAt(0).toUpperCase() + sport.slice(1).replace('_', ' ')
+                  ).join(', ')}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Trained by</Text>
-              <Text style={styles.infoValue}>Coach Arjun Sharma</Text>
+              <Text style={styles.infoLabel}>Gender</Text>
+              <Text style={styles.infoValue}>
+                {profile?.gender ? 
+                  profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)
+                  : 'Not specified'
+                }
+              </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>From</Text>
-              <Text style={styles.infoValue}>Mumbai, India</Text>
+              <Text style={styles.infoLabel}>Location</Text>
+              <Text style={styles.infoValue}>
+                {profile?.city && profile?.state ? 
+                  `${profile.city}, ${profile.state}`
+                  : profile?.city || profile?.state || 'Not specified'
+                }
+              </Text>
             </View>
+            {profile?.disability_type && profile.disability_type !== 'none' && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Disability Type</Text>
+                <Text style={styles.infoValue}>
+                  {profile.disability_type.charAt(0).toUpperCase() + profile.disability_type.slice(1)}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Contact</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>alex.runner@example.com</Text>
+              <Text style={styles.infoValue}>{user?.email || 'Not available'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Phone</Text>
-              <Text style={styles.infoValue}>+91 98765 43210</Text>
+              <Text style={styles.infoValue}>
+                {profile?.phone || 'Not provided'}
+              </Text>
             </View>
           </View>
 
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: '#3b82f6', marginBottom: 12, flexDirection: 'row', justifyContent: 'center' }]} 
+            onPress={() => navigation.navigate('MyCoaches')}
+          >
+            <Ionicons name="people" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>My Coaches</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.button} onPress={handleLogout}>
-            <Text style={styles.buttonText}>Logout (mock)</Text>
+            <Text style={styles.buttonText}>Logout</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (
@@ -364,11 +470,16 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 20 },
   header: { alignItems: 'center', marginBottom: 16, position: 'relative' },

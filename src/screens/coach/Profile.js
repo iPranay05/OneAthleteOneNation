@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
 
 export default function CoachProfile() {
+  const { user, profile: userProfile, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -38,15 +41,26 @@ export default function CoachProfile() {
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => {
-          Alert.alert('Logged Out', 'You have been logged out successfully');
-        }}
+        { 
+          text: 'Logout', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await signOut();
+              // Navigation will be handled by the auth state change
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          }
+        }
       ]
     );
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
       {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
@@ -58,9 +72,21 @@ export default function CoachProfile() {
           </TouchableOpacity>
         </View>
         <View style={styles.headerInfo}>
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.specialization}>{profile.specialization}</Text>
-          <Text style={styles.experience}>{profile.experience} experience</Text>
+          <Text style={styles.name}>
+            {userProfile?.full_name || user?.email || 'Coach'}
+          </Text>
+          <Text style={styles.specialization}>
+            {userProfile?.primary_sport ? 
+              userProfile.primary_sport.charAt(0).toUpperCase() + userProfile.primary_sport.slice(1).replace('_', ' ') + ' Coach'
+              : 'Coach'
+            }
+          </Text>
+          <Text style={styles.experience}>
+            {userProfile?.experience_level ? 
+              userProfile.experience_level.charAt(0).toUpperCase() + userProfile.experience_level.slice(1) + ' Level'
+              : 'Professional Coach'
+            }
+          </Text>
         </View>
         <TouchableOpacity 
           style={styles.editBtn}
@@ -97,7 +123,7 @@ export default function CoachProfile() {
                 keyboardType="email-address"
               />
             ) : (
-              <Text style={styles.infoValue}>{profile.email}</Text>
+              <Text style={styles.infoValue}>{user?.email || profile.email}</Text>
             )}
           </View>
 
@@ -262,11 +288,16 @@ export default function CoachProfile() {
           <Text style={[styles.actionText, { color: '#ef4444' }]}>Logout</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

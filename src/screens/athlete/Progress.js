@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 import { useProgress } from '../../context/ProgressContext';
 import { useWorkouts } from '../../context/WorkoutContext';
 import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
 import { useUser } from '../../context/UserContext';
 import { usePosts } from '../../context/PostsContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import LanguageToggle from '../../components/LanguageToggle'; 
 
 // Mock Pedometer for development
 const Pedometer = {
@@ -19,6 +22,7 @@ const Pedometer = {
 };
 
 export default function Progress({ navigation }) {
+  const { t } = useTranslation();
   const { userProfile } = useUser();
   const [isAvailable, setIsAvailable] = useState(null); // null | boolean
   const [loadingWeekly, setLoadingWeekly] = useState(false);
@@ -142,17 +146,17 @@ export default function Progress({ navigation }) {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning! 🌅";
-    if (hour < 17) return "Good Afternoon! ☀️";
-    return "Good Evening! 🌙";
+    if (hour < 12) return t('progress.goodMorning');
+    if (hour < 17) return t('progress.goodAfternoon');
+    return t('progress.goodEvening');
   };
 
   const getMotivationalMessage = () => {
-    if (progress >= 100) return "Goal crushed! You're unstoppable! 🏆";
-    if (progress >= 75) return "Almost there! Keep pushing! 💪";
-    if (progress >= 50) return "Halfway to greatness! 🚀";
-    if (progress >= 25) return "Great start! Keep it up! ⭐";
-    return "Every step counts! Let's go! 🎯";
+    if (progress >= 100) return t('progress.motivational.goalCrushed');
+    if (progress >= 75) return t('progress.motivational.almostThere');
+    if (progress >= 50) return t('progress.motivational.halfway');
+    if (progress >= 25) return t('progress.motivational.greatStart');
+    return t('progress.motivational.everyStep');
   };
 
   const todayKm = stepsToKm(todaySteps);
@@ -190,8 +194,17 @@ export default function Progress({ navigation }) {
   };
 
   return (
+
+
+    <SafeAreaView style={styles.safeArea}> 
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+      {/* Header with Language Toggle */}
+      <View style={styles.titleHeader}>
+        <Text style={styles.screenTitle}>{t('progress.title')}</Text>
+        <LanguageToggle showLabel={false} />
+      </View>
+
       {/* Header with Greeting */}
       <View style={styles.header}>
         <View>
@@ -200,7 +213,7 @@ export default function Progress({ navigation }) {
         </View>
         <TouchableOpacity style={styles.streakBadge}>
           <Ionicons name="flame" size={16} color="#f97316" />
-          <Text style={styles.streakText}>7 Day Streak</Text>
+          <Text style={styles.streakText}>7 {t('progress.dayStreak')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -211,11 +224,11 @@ export default function Progress({ navigation }) {
             <Ionicons name="footsteps" size={20} color="#f97316" />
           </View>
           <Text style={styles.primaryCardValue}>{todaySteps.toLocaleString()}</Text>
-          <Text style={styles.primaryCardLabel}>Steps Today</Text>
+          <Text style={styles.primaryCardLabel}>{t('progress.stepsToday')}</Text>
           <View style={styles.progressRing}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
-          <Text style={styles.primaryCardLabel}>{progress}% of goal</Text>
+          <Text style={styles.primaryCardLabel}>{progress}% {t('progress.ofGoal')}</Text>
         </View>
 
         <View style={styles.overviewCard}>
@@ -223,7 +236,7 @@ export default function Progress({ navigation }) {
             <Ionicons name="location" size={20} color="#ffffff" />
           </View>
           <Text style={styles.cardValue}>{todayKm.toFixed(1)}</Text>
-          <Text style={styles.cardLabel}>km Distance</Text>
+          <Text style={styles.cardLabel}>{t('progress.kmDistance')}</Text>
         </View>
 
         <View style={styles.overviewCard}>
@@ -231,7 +244,7 @@ export default function Progress({ navigation }) {
             <Ionicons name="flame" size={20} color="#ffffff" />
           </View>
           <Text style={styles.cardValue}>{Math.round(todayKcal)}</Text>
-          <Text style={styles.cardLabel}>Calories</Text>
+          <Text style={styles.cardLabel}>{t('progress.calories')}</Text>
         </View>
 
         <View style={styles.overviewCard}>
@@ -239,7 +252,7 @@ export default function Progress({ navigation }) {
             <Ionicons name="time" size={20} color="#ffffff" />
           </View>
           <Text style={styles.cardValue}>{weeklyStats.daysActive}</Text>
-          <Text style={styles.cardLabel}>Active Days</Text>
+          <Text style={styles.cardLabel}>{t('progress.activeDays')}</Text>
         </View>
       </View>
 
@@ -247,60 +260,60 @@ export default function Progress({ navigation }) {
       <View style={styles.quickActions}>
         <TouchableOpacity style={styles.actionBtn} onPress={shareTodayToUpdates}>
           <Ionicons name="share-social" size={20} color="#f97316" />
-          <Text style={styles.actionText}>Share Progress</Text>
+          <Text style={styles.actionText}>{t('progress.shareProgress')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => {
           const unlockedCount = achievements.length;
-          alert(`🏆 Achievements\n\nYou have unlocked ${unlockedCount} achievements!\n\n${achievements.map(a => `• ${a.name}`).join('\n')}`);
+          alert(`${t('progress.alerts.achievementsTitle')}\n\n${t('progress.alerts.achievementsMessage', { count: unlockedCount })}\n\n${achievements.map(a => `• ${a.name}`).join('\n')}`);
         }}>
           <Ionicons name="trophy" size={20} color="#f97316" />
-          <Text style={styles.actionText}>Achievements</Text>
+          <Text style={styles.actionText}>{t('progress.achievements')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => {
-          alert('🎯 Set New Goal\n\nCurrent daily goal: 8,000 steps\n\nFeature coming soon: Custom goal setting!');
+          alert(`${t('progress.alerts.setGoalTitle')}\n\n${t('progress.alerts.setGoalMessage')}`);
         }}>
           <Ionicons name="flag" size={20} color="#f97316" />
-          <Text style={styles.actionText}>Set Goal</Text>
+          <Text style={styles.actionText}>{t('progress.setGoal')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Workout Session</Text>
+        <Text style={styles.sectionTitle}>{t('progress.workoutSession')}</Text>
         <View style={styles.sessionRow}>
           <View style={styles.sessionCol}>
-            <Text style={styles.metricLabel}>Steps</Text>
+            <Text style={styles.metricLabel}>{t('progress.steps')}</Text>
             <Text style={styles.metricValue}>{sessionSteps}</Text>
           </View>
           <View style={styles.sessionCol}>
-            <Text style={styles.metricLabel}>Distance</Text>
+            <Text style={styles.metricLabel}>{t('progress.distance')}</Text>
             <Text style={styles.metricValue}>{sessionKm.toFixed(2)} km</Text>
           </View>
           <View style={styles.sessionCol}>
-            <Text style={styles.metricLabel}>Speed</Text>
+            <Text style={styles.metricLabel}>{t('progress.speed')}</Text>
             <Text style={styles.metricValue}>{sessionSpeed.toFixed(1)} km/h</Text>
           </View>
         </View>
-        <Text style={[styles.metricLabel, { marginTop: 6 }]}>Duration</Text>
+        <Text style={[styles.metricLabel, { marginTop: 6 }]}>{t('progress.duration')}</Text>
         <Text style={[styles.metricValue, { fontWeight: '800' }]}>{formatDuration(sessionDuration)}</Text>
         <View style={styles.btnRow}>
           {!sessionActive ? (
             <TouchableOpacity style={[styles.button, styles.primaryBtn]} onPress={startSession}>
-              <Text style={styles.buttonText}>Start</Text>
+              <Text style={styles.buttonText}>{t('progress.start')}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={[styles.button, styles.stopBtn]} onPress={handleCompleteSession}>
-              <Text style={styles.buttonText}>Complete</Text>
+              <Text style={styles.buttonText}>{t('progress.complete')}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={[styles.button, styles.ghostBtn, { marginLeft: 10 }]} onPress={resetSession}>
-            <Text style={[styles.buttonText, { color: '#f97316' }]}>Reset</Text>
+            <Text style={[styles.buttonText, { color: '#f97316' }]}>{t('progress.reset')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Achievements Section */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Recent Achievements</Text>
+        <Text style={styles.sectionTitle}>{t('progress.recentAchievements')}</Text>
         <View style={styles.achievementGrid}>
           {achievements.slice(0, 4).map((achievement) => (
             <View key={achievement.id} style={styles.achievementBadge}>
@@ -313,10 +326,10 @@ export default function Progress({ navigation }) {
 
       <View style={styles.card}>
         <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Weekly Progress</Text>
+          <Text style={styles.sectionTitle}>{t('progress.weeklyProgress')}</Text>
           <TouchableOpacity onPress={loadWeekly} style={styles.refreshBtn}>
             <Ionicons name="refresh" size={16} color="#f97316" />
-            <Text style={styles.refreshText}>{loadingWeekly ? 'Loading...' : 'Refresh'}</Text>
+            <Text style={styles.refreshText}>{loadingWeekly ? t('progress.loading') : t('progress.refresh')}</Text>
           </TouchableOpacity>
         </View>
         
@@ -326,19 +339,19 @@ export default function Progress({ navigation }) {
             <Text style={styles.weeklyStatValue}>
               {weeklyStats.totalSteps.toLocaleString()}
             </Text>
-            <Text style={styles.weeklyStatLabel}>Total Steps</Text>
+            <Text style={styles.weeklyStatLabel}>{t('progress.totalSteps')}</Text>
           </View>
           <View style={styles.weeklyStatItem}>
             <Text style={styles.weeklyStatValue}>
               {weeklyStats.averageSteps.toLocaleString()}
             </Text>
-            <Text style={styles.weeklyStatLabel}>Daily Average</Text>
+            <Text style={styles.weeklyStatLabel}>{t('progress.dailyAverage')}</Text>
           </View>
           <View style={styles.weeklyStatItem}>
             <Text style={styles.weeklyStatValue}>
               {weeklyStats.totalDistance}km
             </Text>
-            <Text style={styles.weeklyStatLabel}>Distance</Text>
+            <Text style={styles.weeklyStatLabel}>{t('progress.distance')}</Text>
           </View>
         </View>
 
@@ -364,17 +377,17 @@ export default function Progress({ navigation }) {
           );
         })}
         {weeklyData.length === 0 && (
-          <Text style={styles.noDataText}>No step data yet.</Text>
+          <Text style={styles.noDataText}>{t('progress.noDataText')}</Text>
         )}
       </View>
 
       <View style={styles.metricBox}>
-        <Text style={styles.metricLabel}>Weekly Mileage</Text>
+        <Text style={styles.metricLabel}>{t('progress.weeklyMileage')}</Text>
         <Text style={styles.metricValue}>{weeklyStats.totalDistance} km</Text>
       </View>
 
       <View style={styles.metricBox}>
-        <Text style={styles.metricLabel}>Workouts Completed</Text>
+        <Text style={styles.metricLabel}>{t('progress.workoutsCompleted')}</Text>
         <Text style={styles.metricValue}>{workoutStats.completed}</Text>
       </View>
       </ScrollView>
@@ -389,10 +402,15 @@ export default function Progress({ navigation }) {
         }}
       />
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8fafc', // ✅ match your container background
+  },
   container: { 
     flex: 1, 
     backgroundColor: '#f8fafc',
@@ -401,6 +419,21 @@ const styles = StyleSheet.create({
   },
   
   // Header Styles
+  titleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    marginBottom: 16,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

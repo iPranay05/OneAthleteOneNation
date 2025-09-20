@@ -1,6 +1,7 @@
 import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
+
 import Profile from '../screens/athlete/Profile';
 import Chatbot from '../screens/athlete/Chatbot';
 import CoachDirectory from '../screens/athlete/CoachDirectory';
@@ -12,22 +13,25 @@ import EquipmentMarketplace from '../screens/athlete/EquipmentMarketplace';
 import KnowledgeHub from '../screens/athlete/KnowledgeHub';
 import FundingHub from '../screens/athlete/FundingHub';
 import CoachChat from '../screens/athlete/CoachChat';
-import MessageCoach from '../screens/athlete/MessageCoach';
-import ViewCertificates from '../screens/athlete/ViewCertificates';
+import MyCoaches from '../screens/athlete/MyCoaches';
+import UserProfile from '../screens/shared/UserProfile';
+import DirectMessage from '../screens/shared/DirectMessage';
 
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
 
 export default function AthleteTabs() {
   return (
     <Tab.Navigator
-      initialRouteName="Profile"
+      tabBarPosition="bottom"
       screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#111827',
-        tabBarStyle: { backgroundColor: '#ffffff', borderTopColor: '#e5e7eb' },
+        tabBarScrollEnabled: true,
+        tabBarShowIcon: true, // 👈 important for icons
+        tabBarIndicatorStyle: { backgroundColor: '#f97316' },
         tabBarActiveTintColor: '#f97316',
         tabBarInactiveTintColor: '#9ca3af',
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarLabelStyle: { fontSize: 10 },
+        tabBarItemStyle: { width: 100 }, // make each tab wider
+        tabBarIcon: ({ focused, color }) => {
           let iconName = 'ellipse';
           switch (route.name) {
             case 'Profile':
@@ -48,100 +52,60 @@ export default function AthleteTabs() {
             case 'Progress':
               iconName = focused ? 'stats-chart' : 'stats-chart-outline';
               break;
-            case 'EquipmentMarketplace':
+            case 'Marketplace':
               iconName = focused ? 'storefront' : 'storefront-outline';
               break;
-            case 'KnowledgeHub':
+            case 'Knowledge':
               iconName = focused ? 'library' : 'library-outline';
               break;
-            case 'FundingHub':
+            case 'Funding':
               iconName = focused ? 'card' : 'card-outline';
               break;
-            case 'CoachChat':
+            case 'Messages':
               iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
               break;
           }
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={20} color={color} />;
         },
-        sceneContainerStyle: { backgroundColor: '#ffffff' },
       })}
     >
       <Tab.Screen name="Progress" component={Progress} />
       <Tab.Screen name="Plans" component={Plans} />
       <Tab.Screen name="Explore" component={Explore} />
-      <Tab.Screen
-        name="Chatbot"
-        component={Chatbot}
-        options={{
-          title: 'AI Coach',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="CoachDirectory"
-        component={CoachDirectory}
-        options={{
-          title: 'Coaches',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
-          ),
-        }}
-      />
-      
+      <Tab.Screen name="Chatbot" component={Chatbot} />
+      <Tab.Screen name="CoachDirectory" component={CoachDirectory} options={{ title: 'Coaches' }} />
       <Tab.Screen name="Workout" component={Workout} />
-      
-      <Tab.Screen 
-        name="EquipmentMarketplace" 
-        component={EquipmentMarketplace}
-        options={{
-          title: 'Marketplace',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="storefront" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tab.Screen 
-        name="KnowledgeHub" 
-        component={KnowledgeHub}
-        options={{
-          title: 'Knowledge',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="library" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tab.Screen 
-        name="FundingHub" 
-        component={FundingHub}
-        options={{
-          title: 'Funding',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="card" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tab.Screen 
-        name="CoachChat" 
-        component={CoachChat}
-        options={{
-          title: 'Messages',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
-          ),
-        }}
-      />
-      
+      <Tab.Screen name="Marketplace" component={EquipmentMarketplace} />
+      <Tab.Screen name="Knowledge" component={KnowledgeHub} />
+      <Tab.Screen name="Funding" component={FundingHub} />
+      <Tab.Screen name="Messages" component={CoachChat} />
       <Tab.Screen name="Profile" component={Profile} />
-
+      
       {/* Hidden screens for navigation */}
-      <Tab.Screen name="MessageCoach" component={MessageCoach} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="ViewCertificates" component={ViewCertificates} options={{ tabBarButton: () => null }} />
+      <Tab.Screen 
+                                              name="MyCoaches" 
+        component={MyCoaches} 
+        options={{ 
+          tabBarButton: () => null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
+      <Tab.Screen 
+        name="UserProfile" 
+        component={UserProfile} 
+        options={{ 
+          tabBarButton: () => null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
+      <Tab.Screen 
+        name="DirectMessage" 
+        component={DirectMessage} 
+        options={{ 
+          tabBarButton: () => null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
     </Tab.Navigator>
   );
 }
-

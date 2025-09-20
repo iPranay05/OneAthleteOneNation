@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Coach screens
 import CoachDashboard from '../screens/coach/Dashboard';
+import CoachExplore from '../screens/coach/Explore';
 import AthleteManagement from '../screens/coach/AthleteManagement';
 import WorkoutPlanner from '../screens/coach/WorkoutPlanner';
 import Analytics from '../screens/coach/Analytics';
@@ -12,6 +13,11 @@ import MessageAthlete from '../screens/coach/MessageAthlete';
 import AssignWorkout from '../screens/coach/AssignWorkout';
 import ViewProgress from '../screens/coach/ViewProgress';
 import ScheduleSession from '../screens/coach/ScheduleSession';
+import InjuryPrevention from '../screens/coach/InjuryPrevention';
+import InjuryReport from '../screens/coach/InjuryReport';
+import CoachAssignments from '../screens/coach/CoachAssignments';
+import UserProfile from '../screens/shared/UserProfile';
+import DirectMessage from '../screens/shared/DirectMessage';
 
 const Tab = createBottomTabNavigator();
 
@@ -25,14 +31,14 @@ export default function CoachTabs() {
             case 'Dashboard':
               iconName = focused ? 'home' : 'home-outline';
               break;
+            case 'Explore':
+              iconName = focused ? 'compass' : 'compass-outline';
+              break;
             case 'Athletes':
               iconName = focused ? 'people' : 'people-outline';
               break;
             case 'Workouts':
               iconName = focused ? 'fitness' : 'fitness-outline';
-              break;
-            case 'Analytics':
-              iconName = focused ? 'analytics' : 'analytics-outline';
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
@@ -90,6 +96,15 @@ export default function CoachTabs() {
       />
 
       <Tab.Screen 
+        name="Explore" 
+        component={CoachExplore}
+        options={{ 
+          title: 'Explore',
+          tabBarLabel: 'Explore'
+        }}
+      />
+
+      <Tab.Screen 
         name="Athletes" 
         component={AthleteManagement}
         options={{ 
@@ -106,14 +121,6 @@ export default function CoachTabs() {
         }}
       />
       <Tab.Screen 
-        name="Analytics" 
-        component={Analytics}
-        options={{ 
-          title: 'Analytics',
-          tabBarLabel: 'Stats'
-        }}
-      />
-      <Tab.Screen 
         name="Profile" 
         component={CoachProfile}
         options={{ 
@@ -123,10 +130,16 @@ export default function CoachTabs() {
       />
       
       {/* Hidden screens for coach actions */}
+      <Tab.Screen name="Analytics" component={Analytics} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="MessageAthlete" component={MessageAthlete} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="AssignWorkout" component={AssignWorkout} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="ViewProgress" component={ViewProgress} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="ScheduleSession" component={ScheduleSession} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="InjuryPrevention" component={InjuryPrevention} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="InjuryReport" component={InjuryReport} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="CoachAssignments" component={CoachAssignments} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="UserProfile" component={UserProfile} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="DirectMessage" component={DirectMessage} options={{ tabBarButton: () => null }} />
     </Tab.Navigator>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const mockCoaches = [
   {
@@ -218,7 +219,8 @@ export default function CoachDirectory() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity 
@@ -284,11 +286,16 @@ export default function CoachDirectory() {
           )
         )}
       </ScrollView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#ffffff',

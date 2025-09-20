@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWorkouts } from '../../context/WorkoutContext';
 import { generateWorkout } from '../../services/ai';
 import BlindUserVoiceAssistant from '../../components/BlindUserVoiceAssistant';
@@ -200,7 +201,8 @@ export default function Workout({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 20 }}>
       {/* Header with Stats */}
       <View style={styles.header}>
@@ -350,11 +352,16 @@ export default function Workout({ navigation }) {
           workoutStats: getWorkoutStats()
         }}
       />
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: { 
     flex: 1, 
     backgroundColor: '#f8fafc',

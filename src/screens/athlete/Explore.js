@@ -1,14 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { usePosts } from '../../context/PostsContext';
 import { useActivities } from '../../context/ActivitiesContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import LanguageToggle from '../../components/LanguageToggle';
 
 export default function Explore() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const postsContext = usePosts();
-  const { posts = [], addPost } = postsContext || {};
+  const { posts = [], addPost, isLoading } = postsContext || {};
   const [text, setText] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [selectedCommunity, setSelectedCommunity] = useState('All');
@@ -41,36 +45,97 @@ export default function Explore() {
   const isImage = (url) => /\.(png|jpe?g|gif|webp)$/i.test(url);
   const isVideo = (url) => /\.(mp4|mov|webm|m4v|avi)$/i.test(url);
 
-  const handlePost = () => {
+  const handlePost = async () => {
     const trimmed = text.trim();
     const media = mediaUrl.trim();
     if (!trimmed && !media) return;
 
     const mediaType = media ? (isImage(media) ? 'image' : isVideo(media) ? 'video' : 'link') : 'none';
 
-    addPost({
+    const newPost = {
       name: 'Alex Runner',
+      author: 'Alex Runner',
       sport: selectedCommunity === 'All' ? 'Track & Field' : selectedCommunity,
       avatar: require('../../../assets/icon.png'),
+      authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
       text: trimmed,
-      mediaUrl: media,
+      content: trimmed,
+      mediaUrl: media || null,
       mediaType,
+      authorRole: 'athlete',
+      isCoachPost: false,
+      likes: 0,
+      comments: 0,
+      community: selectedCommunity === 'All' ? 'Track & Field' : selectedCommunity,
+    };
+
+    try {
+      console.log('Athlete creating post:', newPost);
+      await addPost(newPost);
+      setText('');
+      setMediaUrl('');
+      Alert.alert(t('messages.success'), t('explore.postSuccess'));
+    } catch (error) {
+      console.error('Error creating post:', error);
+      Alert.alert(t('messages.error'), t('explore.postError'));
+    }
+  };
+
+  const handleUserPress = (post) => {
+    if (!post || (!post.name && !post.author)) {
+      console.warn('Invalid post data for user press:', post);
+      return;
+    }
+
+    const userId = post.authorId || post.id || 'user-' + (post.name || post.author).replace(/\s+/g, '-').toLowerCase();
+    const userType = (post.isCoachPost || post.authorRole === 'coach') ? 'coach' : 'athlete';
+    const userName = post.name || post.author;
+    const userAvatar = post.authorAvatar || (typeof post.avatar === 'string' ? post.avatar : null);
+
+    console.log('Navigating to UserProfile with:', { userId, userType, userName, userAvatar });
+
+    navigation.navigate('UserProfile', {
+      userId,
+      userType,
+      userName,
+      userAvatar,
     });
-    setText('');
-    setMediaUrl('');
   };
 
   const renderPostItem = ({ item }) => (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <Image source={item.avatar} style={styles.postAvatar} />
+        <TouchableOpacity onPress={() => handleUserPress(item)}>
+          <Image 
+            source={
+              typeof item.avatar === 'string' 
+                ? { uri: item.avatar } 
+                : item.avatar || item.authorAvatar 
+                  ? { uri: item.authorAvatar }
+                  : require('../../../assets/icon.png')
+            } 
+            style={styles.postAvatar} 
+          />
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.postName}>{item.name}</Text>
-          <Text style={styles.postSub}>@{item.sport.toLowerCase().replace(/\s+/g, '')}</Text>
+          <TouchableOpacity onPress={() => handleUserPress(item)}>
+            <View style={styles.authorNameContainer}>
+              <Text style={styles.postName}>{item.name || item.author}</Text>
+              {(item.isCoachPost || item.authorRole === 'coach') && (
+                <View style={styles.coachBadge}>
+                  <Ionicons name="school" size={10} color="#ffffff" />
+                  <Text style={styles.coachBadgeText}>{t('posts.coachBadge')}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.postSub}>
+            @{(item.sport || item.community || 'general').toLowerCase().replace(/\s+/g, '')}
+          </Text>
         </View>
         <Ionicons name="ellipsis-horizontal" size={18} color="#9ca3af" />
       </View>
-      {!!item.text && <Text style={styles.postText}>{item.text}</Text>}
+      {!!(item.text || item.content) && <Text style={styles.postText}>{item.text || item.content}</Text>}
 
       {item.mediaType === 'image' && !!item.mediaUrl && (
         <Image source={{ uri: item.mediaUrl }} style={styles.postImage} />
@@ -94,15 +159,15 @@ export default function Explore() {
       <View style={styles.actionsRow}>
         <View style={styles.actionBtn}>
           <Ionicons name="heart-outline" size={18} color="#6b7280" />
-          <Text style={styles.actionLabel}>Like</Text>
+          <Text style={styles.actionLabel}>{t('posts.like')}</Text>
         </View>
         <View style={styles.actionBtn}>
           <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
-          <Text style={styles.actionLabel}>Comment</Text>
+          <Text style={styles.actionLabel}>{t('posts.comment')}</Text>
         </View>
         <View style={styles.actionBtn}>
           <Ionicons name="share-social-outline" size={18} color="#6b7280" />
-          <Text style={styles.actionLabel}>Share</Text>
+          <Text style={styles.actionLabel}>{t('posts.share')}</Text>
         </View>
       </View>
     </View>
@@ -134,16 +199,28 @@ export default function Explore() {
   const keyExtractor = (item) => item.id;
 
   const communities = useMemo(() => {
-    const set = new Set(['All']);
-    posts.forEach((p) => p?.sport && set.add(p.sport));
-    activities.forEach((a) => a?.sport && set.add(a.sport));
+    const set = new Set([t('explore.allCommunities')]);
+    posts.forEach((p) => p?.sport && set.add(t(`sports.${p.sport.toLowerCase().replace(/\s+/g, '')}`) || p.sport));
+    activities.forEach((a) => a?.sport && set.add(t(`sports.${a.sport.toLowerCase().replace(/\s+/g, '')}`) || a.sport));
     return Array.from(set);
-  }, [posts, activities]);
+  }, [posts, activities, t]);
 
   const filteredPosts = useMemo(() => {
-    if (selectedCommunity === 'All') return posts;
-    return posts.filter((p) => p.sport === selectedCommunity);
-  }, [posts, selectedCommunity]);
+    let filtered;
+    if (selectedCommunity === t('explore.allCommunities') || selectedCommunity === 'All') {
+      filtered = posts;
+    } else {
+      filtered = posts.filter((p) => {
+        const translatedSport = t(`sports.${p.sport?.toLowerCase().replace(/\s+/g, '')}`) || p.sport;
+        const translatedCommunity = t(`sports.${p.community?.toLowerCase().replace(/\s+/g, '')}`) || p.community;
+        return translatedSport === selectedCommunity || translatedCommunity === selectedCommunity || 
+               p.sport === selectedCommunity || p.community === selectedCommunity;
+      });
+    }
+    console.log('Athlete screen - Total posts:', posts.length, 'Filtered posts:', filtered.length);
+    console.log('Athlete screen - Posts:', filtered.map(p => ({ id: p.id, author: p.author || p.name, isCoachPost: p.isCoachPost })));
+    return filtered;
+  }, [posts, selectedCommunity, t]);
 
   const filteredActivities = useMemo(() => {
     if (selectedCommunity === 'All') return activities;
@@ -151,8 +228,15 @@ export default function Explore() {
   }, [activities, selectedCommunity]);
 
   return (
-    <View style={styles.container}>
-      {/* Community selector (story-style) */}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Header with Language Toggle */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{t('explore.title')}</Text>
+          <LanguageToggle showLabel={false} />
+        </View>
+
+        {/* Community selector (story-style) */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyRow}>
         {communities.map((label) => {
           const selected = label === selectedCommunity;
@@ -167,14 +251,15 @@ export default function Explore() {
           );
         })}
       </ScrollView>
+      
 
       {/* Toggle between Posts and Activities */}
       <View style={styles.toggleRow}>
         <TouchableOpacity onPress={() => setMode('posts')} style={[styles.toggleBtn, mode === 'posts' && styles.toggleBtnActive]}>
-          <Text style={[styles.toggleText, mode === 'posts' && styles.toggleTextActive]}>Posts</Text>
+          <Text style={[styles.toggleText, mode === 'posts' && styles.toggleTextActive]}>{t('explore.posts')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setMode('activities')} style={[styles.toggleBtn, mode === 'activities' && styles.toggleBtnActive]}>
-          <Text style={[styles.toggleText, mode === 'activities' && styles.toggleTextActive]}>Activities</Text>
+          <Text style={[styles.toggleText, mode === 'activities' && styles.toggleTextActive]}>{t('explore.activities')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -186,7 +271,7 @@ export default function Explore() {
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder={`Share to ${selectedCommunity === 'All' ? 'Track & Field' : selectedCommunity}...`}
+              placeholder={t('explore.createPost')}
               placeholderTextColor="#9ca3af"
               style={styles.textArea}
               multiline
@@ -195,26 +280,39 @@ export default function Explore() {
           <TextInput
             value={mediaUrl}
             onChangeText={setMediaUrl}
-            placeholder="Paste photo/video URL (optional)"
+            placeholder={t('explore.mediaPlaceholder')}
             placeholderTextColor="#9ca3af"
             style={styles.urlInput}
           />
           <TouchableOpacity style={styles.postBtn} onPress={handlePost}>
             <Ionicons name="send" size={16} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.postBtnText}>Post</Text>
+            <Text style={styles.postBtnText}>{t('explore.postButton')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {mode === 'posts' ? (
-        <FlatList
-          data={filteredPosts}
-          keyExtractor={keyExtractor}
-          renderItem={renderPostItem}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.emptyText}>No posts yet.</Text>}
-        />
+        isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#f97316" />
+            <Text style={styles.loadingText}>{t('explore.loading')}</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredPosts}
+            keyExtractor={keyExtractor}
+            renderItem={renderPostItem}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="chatbubbles-outline" size={64} color="#9ca3af" />
+                <Text style={styles.emptyText}>{t('explore.emptyPosts')}</Text>
+                <Text style={styles.emptySubtext}>{t('explore.emptyPostsSubtext')}</Text>
+              </View>
+            }
+          />
+        )
       ) : (
         <FlatList
           data={filteredActivities}
@@ -222,15 +320,42 @@ export default function Explore() {
           renderItem={renderActivityItem}
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.emptyText}>No activities yet.</Text>}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="fitness-outline" size={64} color="#9ca3af" />
+              <Text style={styles.emptyText}>{t('explore.emptyActivities')}</Text>
+              <Text style={styles.emptySubtext}>{t('explore.emptyActivitiesSubtext')}</Text>
+            </View>
+          }
         />
       )}
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff', padding: 16 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+  },
   storyRow: { 
     paddingBottom: 12, 
     paddingTop: 8,
@@ -359,4 +484,50 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center' },
   actionLabel: { color: '#6b7280', marginLeft: 6 },
+
+  // Coach badge styles
+  authorNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coachBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  coachBadgeText: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginLeft: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
+  },
 });

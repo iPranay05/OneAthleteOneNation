@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-export default function CoachDashboard() {
+export default function CoachDashboard({ navigation }) {
   const [stats, setStats] = useState({
     totalAthletes: 12,
     activeAthletes: 8,
@@ -116,6 +116,16 @@ export default function CoachDashboard() {
           <TouchableOpacity style={styles.actionCard} onPress={() => Alert.alert('View Analytics', 'Navigate to analytics')}>
             <Ionicons name="bar-chart" size={32} color="#f97316" />
             <Text style={styles.actionText}>View Analytics</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('InjuryPrevention')}>
+            <Ionicons name="medical" size={32} color="#f97316" />
+            <Text style={styles.actionText}>Injury Prevention</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('CoachAssignments')}>
+            <Ionicons name="people-circle" size={32} color="#f97316" />
+            <Text style={styles.actionText}>Coach Management</Text>
           </TouchableOpacity>
         </View>
       </View>
